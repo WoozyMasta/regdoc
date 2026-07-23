@@ -20,6 +20,7 @@ RUN make build NATIVE_GOOS="$TARGETOS" NATIVE_GOARCH="$TARGETARCH"
 
 
 FROM docker.io/library/busybox:$BUSYBOX_VERSION-musl
+LABEL org.opencontainers.image.description="Build and publish container registry descriptions from project Markdown"
 COPY --from=build /src/build/regdoc /bin/regdoc
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 ENTRYPOINT ["/bin/regdoc"]
