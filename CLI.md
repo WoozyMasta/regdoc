@@ -49,6 +49,8 @@ regdoc collects repository Markdown and publishes it as the description of a Doc
 |`--author`|Author shown in the generated header|`$REGDOC_AUTHOR`|no|
 |`--copyright`|Copyright notice shown in the generated header|`$REGDOC_COPYRIGHT`|no|
 |`--keep-comments`|Keep HTML comments instead of stripping them from the published Markdown|`$REGDOC_KEEP_COMMENTS`|no|
+|`--link-base-url`|Base URL prepended to relative Markdown link destinations; overrides CI URL discovery (requires --image-base-url)|`$REGDOC_LINK_BASE_URL`|no|
+|`--image-base-url`|Base URL prepended to relative Markdown image destinations; overrides CI URL discovery (requires --link-base-url)|`$REGDOC_IMAGE_BASE_URL`|no|
 
 ### Target Options
 
@@ -56,7 +58,6 @@ regdoc collects repository Markdown and publishes it as the description of a Doc
 |---|---|---|---|---|
 |`-p`, `--provider`|Provider: auto, dockerhub, quay or harbor; choices: `auto, dockerhub, quay, harbor`|`auto`|`$REGDOC_PROVIDER`|no|
 |`-r`, `--root`|Root directory for document discovery and relative link resolution|`.`|`$REGDOC_ROOT`|no|
-|`-b`, `--base-url`|Base URL prepended to relative Markdown links and images||`$REGDOC_BASE_URL`|no|
 |`--plain-http`|Use plain HTTP for the target registry||`$REGDOC_PLAIN_HTTP`|no|
 |`--tls-skip-verify`|Disable TLS certificate verification for the target registry||`$REGDOC_TLS_SKIP_VERIFY`|no|
 

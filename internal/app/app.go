@@ -10,11 +10,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 
 	"github.com/woozymasta/regdoc/internal/auth"
 	"github.com/woozymasta/regdoc/internal/document"
 	"github.com/woozymasta/regdoc/internal/httpx"
 	"github.com/woozymasta/regdoc/internal/provider"
+	"github.com/woozymasta/regdoc/internal/source"
 	"github.com/woozymasta/regdoc/internal/target"
 )
 
@@ -40,26 +42,39 @@ func Run(ctx context.Context, cfg Config, stdout, stderr io.Writer) error {
 		return nil
 	}
 
+	// Source discovery is resolved once from CI environment variables
+	// and reused for both header metadata and link/image base URLs.
+	resolved := source.Resolve(os.Getenv)
+
 	// Header metadata is resolved once and reused by fallback attempts.
 	header, err := document.BuildHeader(document.HeaderConfig{
-		Root:       cfg.Root,
-		Title:      cfg.Title,
-		SourceName: cfg.SourceName,
-		SourceURL:  cfg.SourceURL,
-		Author:     cfg.Author,
-		Copyright:  cfg.Copyright,
-		License:    cfg.License,
+		Root:            cfg.Root,
+		Title:           cfg.Title,
+		SourceName:      cfg.SourceName,
+		SourceURL:       cfg.SourceURL,
+		Author:          cfg.Author,
+		Copyright:       cfg.Copyright,
+		License:         cfg.License,
+		DiscoveredName:  resolved.Name,
+		DiscoveredTitle: resolved.Title,
+		DiscoveredURL:   resolved.ProjectURL,
 	})
 	if err != nil {
 		return configErrorf("build header: %w", err)
 	}
 
-	baseURL := resolveBaseURL(cfg.BaseURL)
+	// The `and` relation on --link-base-url/--image-base-url guarantees both are set
+	// or both are empty by the time Run executes, so checking one is enough.
+	linkBaseURL, imageBaseURL := cfg.LinkBaseURL, cfg.ImageBaseURL
+	if linkBaseURL == "" {
+		linkBaseURL, imageBaseURL = resolved.LinkBaseURL, resolved.ImageBaseURL
+	}
 
 	// Render sources once; retries only re-merge the rendered parts.
 	parts, err := document.Process(sources, document.BuildConfig{
 		Root:          cfg.Root,
-		BaseURL:       baseURL,
+		LinkBaseURL:   linkBaseURL,
+		ImageBaseURL:  imageBaseURL,
 		EmbedImages:   cfg.EmbedImages,
 		StripComments: !cfg.KeepComments,
 	})

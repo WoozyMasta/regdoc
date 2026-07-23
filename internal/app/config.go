@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -29,22 +28,23 @@ type Config struct { // betteralign:ignore
 
 // TargetOptions selects the destination registry and source repository.
 type TargetOptions struct {
-	Provider      string `long:"provider"        description:"Provider: auto, dockerhub, quay or harbor"                          short:"p" default:"auto" choices:"auto;dockerhub;quay;harbor"`
+	Provider      string `long:"provider"        description:"Provider: auto, dockerhub, quay or harbor" short:"p" default:"auto" choices:"auto;dockerhub;quay;harbor"`
 	Root          string `long:"root"            description:"Root directory for document discovery and relative link resolution" short:"r" default:"." completion:"dir" validate-readable:"yes" validate-existing-dir:"yes"`
-	BaseURL       string `long:"base-url"        description:"Base URL prepended to relative Markdown links and images"           short:"b"`
 	PlainHTTP     bool   `long:"plain-http"      description:"Use plain HTTP for the target registry" xor:"transport"`
 	TLSSkipVerify bool   `long:"tls-skip-verify" description:"Disable TLS certificate verification for the target registry" xor:"transport"`
 }
 
 // DocumentOptions controls document discovery, rewriting and generated metadata.
 type DocumentOptions struct {
-	Title        string `long:"title"         description:"Project title used in the generated header"`
-	SourceName   string `long:"source-name"   description:"Project name shown in the generated header"`
-	SourceURL    string `long:"source-url"    description:"Project URL shown in the generated header"`
-	License      string `long:"license"       description:"License file to identify in the header (default: auto-discover LICENSE in --root)" completion:"file" validate-readable:"yes" validate-existing-file:"yes"`
-	Author       string `long:"author"        description:"Author shown in the generated header"`
-	Copyright    string `long:"copyright"     description:"Copyright notice shown in the generated header"`
-	KeepComments bool   `long:"keep-comments" description:"Keep HTML comments instead of stripping them from the published Markdown"`
+	Title        string `long:"title"          description:"Project title used in the generated header"`
+	SourceName   string `long:"source-name"    description:"Project name shown in the generated header"`
+	SourceURL    string `long:"source-url"     description:"Project URL shown in the generated header"`
+	License      string `long:"license"        description:"License file to identify in the header (default: auto-discover LICENSE in --root)" completion:"file" validate-readable:"yes" validate-existing-file:"yes"`
+	Author       string `long:"author"         description:"Author shown in the generated header"`
+	Copyright    string `long:"copyright"      description:"Copyright notice shown in the generated header"`
+	LinkBaseURL  string `long:"link-base-url"  description:"Base URL prepended to relative Markdown link destinations; overrides CI URL discovery (requires --image-base-url)" and:"source-base-url"`
+	ImageBaseURL string `long:"image-base-url" description:"Base URL prepended to relative Markdown image destinations; overrides CI URL discovery (requires --link-base-url)" and:"source-base-url"`
+	KeepComments bool   `long:"keep-comments"  description:"Keep HTML comments instead of stripping them from the published Markdown"`
 }
 
 // OutputOptions controls the generated repository description.
@@ -127,61 +127,6 @@ func readStdinSecret(r *bufio.Reader) (string, error) {
 	}
 
 	return strings.TrimRight(line, "\r\n"), nil
-}
-
-// resolveBaseURL prefers explicit configuration, then GitLab,
-// GitHub-compatible Actions and Bitbucket Pipelines metadata.
-func resolveBaseURL(explicit string) string {
-	if explicit != "" {
-		return explicit
-	}
-
-	if baseURL := gitLabBaseURL(); baseURL != "" {
-		return baseURL
-	}
-
-	if baseURL := githubActionsBaseURL(); baseURL != "" {
-		return baseURL
-	}
-
-	return bitbucketBaseURL()
-}
-
-// gitLabBaseURL derives a raw-file URL from GitLab CI project metadata.
-func gitLabBaseURL() string {
-	projectURL := os.Getenv("CI_PROJECT_URL")
-	branch := os.Getenv("CI_DEFAULT_BRANCH")
-	if projectURL == "" || branch == "" {
-		return ""
-	}
-
-	return strings.TrimSuffix(projectURL, "/") + "/-/raw/" + branch + "/"
-}
-
-// githubActionsBaseURL derives a commit-pinned raw-file URL
-// from the GitHub Actions variables also provided by Gitea/Forgejo Actions.
-func githubActionsBaseURL() string {
-	serverURL := os.Getenv("GITHUB_SERVER_URL")
-	repository := os.Getenv("GITHUB_REPOSITORY")
-	commit := os.Getenv("GITHUB_SHA")
-	if serverURL == "" || repository == "" || commit == "" {
-		return ""
-	}
-
-	return strings.TrimSuffix(serverURL, "/") + "/" +
-		strings.Trim(repository, "/") + "/raw/" + commit + "/"
-}
-
-// bitbucketBaseURL derives a commit-pinned raw-file URL from Bitbucket
-// Pipelines metadata.
-func bitbucketBaseURL() string {
-	origin := strings.TrimSuffix(strings.TrimSuffix(os.Getenv("BITBUCKET_GIT_HTTP_ORIGIN"), "/"), ".git")
-	commit := os.Getenv("BITBUCKET_COMMIT")
-	if origin == "" || commit == "" {
-		return ""
-	}
-
-	return origin + "/raw/" + commit + "/"
 }
 
 // configErrorf constructs an error with configuration exit semantics.

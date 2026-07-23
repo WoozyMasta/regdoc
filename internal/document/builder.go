@@ -17,7 +17,8 @@ const partSeparator = "\n\n---\n\n"
 // BuildConfig configures per-source Markdown processing shared across all sources of a single build.
 type BuildConfig struct {
 	Root          string // Root bounds relative-link resolution.
-	BaseURL       string // BaseURL prefixes rewritten relative links.
+	LinkBaseURL   string // LinkBaseURL prefixes rewritten relative *ast.Link destinations.
+	ImageBaseURL  string // ImageBaseURL prefixes rewritten relative *ast.Image destinations.
 	EmbedImages   bool   // EmbedImages replaces local image paths with data URIs.
 	StripComments bool   // StripComments removes standalone HTML comments.
 }
@@ -37,7 +38,8 @@ func Process(sources []Source, cfg BuildConfig) ([]ProcessedPart, error) {
 		rewritten, err := Rewrite(src.Content, RewriteConfig{
 			Root:          cfg.Root,
 			RelPath:       src.RelPath,
-			BaseURL:       cfg.BaseURL,
+			LinkBaseURL:   cfg.LinkBaseURL,
+			ImageBaseURL:  cfg.ImageBaseURL,
 			EmbedImages:   cfg.EmbedImages,
 			StripComments: cfg.StripComments,
 		})

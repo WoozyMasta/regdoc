@@ -14,6 +14,23 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## Unreleased
+
+### Added
+
+* Automatic source link/image URL discovery for Woodpecker CI via
+  `CI_FORGE_TYPE`, `CI_REPO_URL`, and `CI_COMMIT_SHA`.
+
+### Changed
+
+* Replace `--base-url`/`-b`/`REGDOC_BASE_URL` with `--link-base-url`
+  and `--image-base-url` (`REGDOC_LINK_BASE_URL`/`REGDOC_IMAGE_BASE_URL`),
+  an all-or-nothing manual override: a single base URL cannot correctly
+  describe both Markdown links and images on any supported forge.
+* CI-discovered link and image URLs are now always pinned to a full commit SHA
+  instead of a branch name, across GitLab CI, GitHub Actions, Gitea Actions,
+  Forgejo Actions, Bitbucket Pipelines, and Woodpecker CI.
+
 ## [0.1.0][] - 2026-07-23
 
 ### Added

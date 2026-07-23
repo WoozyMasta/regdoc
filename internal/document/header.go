@@ -7,7 +7,6 @@ package document
 import (
 	"fmt"
 	"os"
-	"path"
 	"strings"
 
 	"github.com/google/licensecheck"
@@ -18,22 +17,24 @@ const licenseCoverageThreshold = 40.0
 
 // HeaderConfig configures the header prepended to the merged document.
 type HeaderConfig struct {
-	Root       string // Root is used for automatic metadata discovery.
-	Title      string // Title overrides the discovered project title.
-	SourceName string // SourceName overrides the discovered project name.
-	SourceURL  string // SourceURL overrides the discovered project URL.
-	Author     string // Author is included in the generated header.
-	Copyright  string // Copyright is included in the generated header.
-	License    string // License is an explicit path to a license file. Empty auto-discover a "LICENSE" file.
+	Root            string // Root is used for automatic metadata discovery.
+	Title           string // Title overrides DiscoveredTitle.
+	SourceName      string // SourceName overrides DiscoveredName.
+	SourceURL       string // SourceURL overrides DiscoveredURL.
+	Author          string // Author is included in the generated header.
+	Copyright       string // Copyright is included in the generated header.
+	License         string // License is an explicit path to a license file. Empty auto-discover a "LICENSE" file.
+	DiscoveredName  string // DiscoveredName is CI-resolved project metadata; SourceName wins when set.
+	DiscoveredTitle string // DiscoveredTitle is CI-resolved project metadata; Title wins when set.
+	DiscoveredURL   string // DiscoveredURL is CI-resolved project metadata; SourceURL wins when set.
 }
 
 // BuildHeader builds the header content prepended to the merged document.
 // It returns an empty slice (not an error) when nothing was configured and nothing could be auto-detected.
 func BuildHeader(cfg HeaderConfig) ([]byte, error) {
-	project := discoverProject()
-	title := firstNonEmpty(cfg.Title, project.Title)
-	sourceName := firstNonEmpty(cfg.SourceName, project.Name)
-	sourceURL := firstNonEmpty(cfg.SourceURL, project.URL)
+	title := firstNonEmpty(cfg.Title, cfg.DiscoveredTitle)
+	sourceName := firstNonEmpty(cfg.SourceName, cfg.DiscoveredName)
+	sourceURL := firstNonEmpty(cfg.SourceURL, cfg.DiscoveredURL)
 
 	license, err := detectLicense(cfg.Root, cfg.License)
 	if err != nil {
@@ -63,66 +64,6 @@ func BuildHeader(cfg HeaderConfig) ([]byte, error) {
 	}
 
 	return []byte(strings.Join(paragraphs, "\n\n")), nil
-}
-
-// project contains CI-discovered metadata used by the generated header.
-type project struct {
-	Name  string
-	Title string
-	URL   string
-}
-
-// discoverProject returns metadata from the first recognized CI environment.
-func discoverProject() project {
-	if result := gitLabProject(); result != (project{}) {
-		return result
-	}
-
-	if result := githubActionsProject(); result != (project{}) {
-		return result
-	}
-
-	return bitbucketProject()
-}
-
-// gitLabProject reads standard GitLab CI project metadata.
-func gitLabProject() project {
-	return project{
-		Name:  os.Getenv("CI_PROJECT_PATH"),
-		Title: os.Getenv("CI_PROJECT_TITLE"),
-		URL:   os.Getenv("CI_PROJECT_URL"),
-	}
-}
-
-// githubActionsProject reads GitHub Actions metadata
-// also provided by Gitea and Forgejo Actions.
-func githubActionsProject() project {
-	serverURL := strings.TrimSuffix(os.Getenv("GITHUB_SERVER_URL"), "/")
-	repository := strings.Trim(os.Getenv("GITHUB_REPOSITORY"), "/")
-	if serverURL == "" || repository == "" {
-		return project{}
-	}
-
-	return project{
-		Name:  repository,
-		Title: path.Base(repository),
-		URL:   serverURL + "/" + repository,
-	}
-}
-
-// bitbucketProject reads standard Bitbucket Pipelines repository metadata.
-func bitbucketProject() project {
-	origin := strings.TrimSuffix(strings.TrimSuffix(os.Getenv("BITBUCKET_GIT_HTTP_ORIGIN"), "/"), ".git")
-	name := os.Getenv("BITBUCKET_REPO_FULL_NAME")
-	title := os.Getenv("BITBUCKET_REPO_SLUG")
-	if name == "" {
-		name = title
-	}
-	if title == "" && origin != "" {
-		title = path.Base(origin)
-	}
-
-	return project{Name: name, Title: title, URL: origin}
 }
 
 // projectLine renders project metadata from the available name and URL.

@@ -101,6 +101,34 @@ func TestRunOutputDashWritesStdoutNoNetwork(t *testing.T) {
 	}
 }
 
+func TestRunRewritesLinksAndImagesWithExplicitBaseURLs(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "README.md", "[docs](guide.md)\n\n![logo](logo.png)\n")
+
+	cfg := testConfig(dir)
+	cfg.Provider = "auto"
+	cfg.Output = "-"
+	cfg.LinkBaseURL = "https://git.example/project/-/blob/main/"
+	cfg.ImageBaseURL = "https://git.example/project/-/raw/main/"
+	cfg.Positional.Image = "custom.invalid.example/project/image"
+
+	var stdout, stderr bytes.Buffer
+
+	if err := Run(context.Background(), cfg, &stdout, &stderr); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	out := stdout.String()
+
+	if !strings.Contains(out, "https://git.example/project/-/blob/main/guide.md") {
+		t.Fatalf("expected link rewritten under LinkBaseURL, got %q", out)
+	}
+
+	if !strings.Contains(out, "https://git.example/project/-/raw/main/logo.png") {
+		t.Fatalf("expected image rewritten under ImageBaseURL, got %q", out)
+	}
+}
+
 func TestRunOutputHTMLWritesRenderedDocument(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "README.md", "# Hello\n\n| Name | Value |\n| --- | --- |\n| one | two |\n")

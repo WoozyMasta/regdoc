@@ -34,7 +34,8 @@ var embeddedImagePattern = regexp.MustCompile(
 type RewriteConfig struct {
 	Root          string // Root bounds relative-link resolution.
 	RelPath       string // RelPath locates the source under Root.
-	BaseURL       string // BaseURL prefixes rewritten relative destinations.
+	LinkBaseURL   string // LinkBaseURL prefixes rewritten relative *ast.Link destinations.
+	ImageBaseURL  string // ImageBaseURL prefixes rewritten relative *ast.Image destinations.
 	EmbedImages   bool   // EmbedImages replaces local image paths with data URIs.
 	StripComments bool   // StripComments removes standalone HTML comments.
 }
@@ -165,14 +166,20 @@ func rewriteLinks(doc ast.Node, cfg RewriteConfig) error {
 		}
 
 		var dest *[]byte
+		baseURL := cfg.LinkBaseURL
+		kind := "link"
 		isImage := false
 
 		switch node := n.(type) { //nolint:exhaustive // only Link/Image carry a destination.
 		case *ast.Link:
 			dest = &node.Destination
+
 		case *ast.Image:
 			dest = &node.Destination
+			baseURL = cfg.ImageBaseURL
+			kind = "image"
 			isImage = true
+
 		default:
 			return ast.WalkContinue, nil
 		}
@@ -189,7 +196,7 @@ func rewriteLinks(doc ast.Node, cfg RewriteConfig) error {
 			}
 		}
 
-		newDest, err := rewriteDestination(string(*dest), cfg)
+		newDest, err := rewriteDestination(string(*dest), baseURL, kind, cfg)
 		if err != nil {
 			return ast.WalkStop, err
 		}
@@ -264,9 +271,10 @@ func resolveLocalPath(root, relPath, destination string) (string, error) {
 	return resolved, nil
 }
 
-// rewriteDestination changes only relative destinations.
+// rewriteDestination changes only relative destinations, prefixing them with baseURL
+// (the link or image base selected by the caller for this node kind).
 // Absolute and unusual destinations remain untouched because changing their semantics is unsafe.
-func rewriteDestination(dest string, cfg RewriteConfig) (string, error) {
+func rewriteDestination(dest, baseURL, kind string, cfg RewriteConfig) (string, error) {
 	if dest == "" || strings.HasPrefix(dest, "#") || strings.HasPrefix(dest, "//") {
 		return dest, nil
 	}
@@ -280,7 +288,7 @@ func rewriteDestination(dest string, cfg RewriteConfig) (string, error) {
 		return dest, nil //nolint:nilerr // intentional: see comment above.
 	}
 
-	if cfg.BaseURL == "" {
+	if baseURL == "" {
 		// Relative links remain portable when no publication URL is configured.
 		return dest, nil
 	}
@@ -289,12 +297,12 @@ func rewriteDestination(dest string, cfg RewriteConfig) (string, error) {
 
 	resolved := path.Join(currentDir, u.Path)
 	if resolved == ".." || strings.HasPrefix(resolved, "../") {
-		return "", fmt.Errorf("link %q in %q resolves above --root %q", dest, cfg.RelPath, cfg.Root)
+		return "", fmt.Errorf("%s %q in %q resolves above --root %q", kind, dest, cfg.RelPath, cfg.Root)
 	}
 
-	base, err := url.Parse(normalizeBaseURL(cfg.BaseURL))
+	base, err := url.Parse(normalizeBaseURL(baseURL))
 	if err != nil {
-		return "", fmt.Errorf("invalid --base-url %q: %w", cfg.BaseURL, err)
+		return "", fmt.Errorf("invalid --%s-base-url %q: %w", kind, baseURL, err)
 	}
 
 	base.Path = path.Join(base.Path, resolved)

@@ -8,6 +8,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/woozymasta/flags"
 )
 
 func TestResolvePasswordFromStdin(t *testing.T) {
@@ -46,75 +48,81 @@ func TestResolveSecretsNoStdinFlagsLeavesValuesUntouched(t *testing.T) {
 	}
 }
 
-// clearBaseURLEnv isolates automatic source URL detection in each test.
-func clearBaseURLEnv(t *testing.T) {
+// newTestParser builds a parser matching cmd/regdoc/main.go's env provisioning setup,
+// without the interactive-only options (help, version, shell completion) that would complicate these tests.
+func newTestParser(cfg *Config) *flags.Parser {
+	parser := flags.NewParser(cfg, flags.EnvProvisioning)
+	parser.SetEnvPrefix("REGDOC")
+
+	return parser
+}
+
+// asFlagsError unwraps err into a *flags.Error, failing the test if it isn't one.
+func asFlagsError(t *testing.T, err error) *flags.Error {
 	t.Helper()
 
-	for _, name := range []string{
-		"CI_PROJECT_URL",
-		"CI_DEFAULT_BRANCH",
-		"GITHUB_SERVER_URL",
-		"GITHUB_REPOSITORY",
-		"GITHUB_SHA",
-	} {
-		t.Setenv(name, "")
+	var flagsErr *flags.Error
+	if !errors.As(err, &flagsErr) {
+		t.Fatalf("expected *flags.Error, got %T: %v", err, err)
+	}
+
+	return flagsErr
+}
+
+func TestLinkAndImageBaseURLOnlyOneSetIsError(t *testing.T) {
+	var cfg Config
+
+	_, err := newTestParser(&cfg).ParseArgs([]string{"--link-base-url=https://git.example/project/-/blob/main/", "image"})
+	if err == nil {
+		t.Fatal("expected error when only --link-base-url is set")
+	}
+
+	if got := asFlagsError(t, err); got.Type != flags.ErrOptionRequirement {
+		t.Fatalf("Type = %v, want ErrOptionRequirement", got.Type)
 	}
 }
 
-func TestResolveBaseURLExplicitWins(t *testing.T) {
-	clearBaseURLEnv(t)
-	t.Setenv("CI_PROJECT_URL", "https://gitlab.example/group/project")
-	t.Setenv("CI_DEFAULT_BRANCH", "main")
+func TestLinkAndImageBaseURLOnlyImageEnvSetIsError(t *testing.T) {
+	t.Setenv("REGDOC_IMAGE_BASE_URL", "https://git.example/project/-/raw/main/")
 
-	got := resolveBaseURL("https://explicit.example/")
-	if got != "https://explicit.example/" {
-		t.Fatalf("got %q", got)
+	var cfg Config
+
+	_, err := newTestParser(&cfg).ParseArgs([]string{"image"})
+	if err == nil {
+		t.Fatal("expected error when only REGDOC_IMAGE_BASE_URL is set")
+	}
+
+	if got := asFlagsError(t, err); got.Type != flags.ErrOptionRequirement {
+		t.Fatalf("Type = %v, want ErrOptionRequirement", got.Type)
 	}
 }
 
-func TestResolveBaseURLFromCI(t *testing.T) {
-	clearBaseURLEnv(t)
-	t.Setenv("CI_PROJECT_URL", "https://gitlab.example/group/project")
-	t.Setenv("CI_DEFAULT_BRANCH", "main")
+func TestLinkAndImageBaseURLBothSetIsNotAnError(t *testing.T) {
+	var cfg Config
 
-	got := resolveBaseURL("")
-	want := "https://gitlab.example/group/project/-/raw/main/"
+	_, err := newTestParser(&cfg).ParseArgs([]string{
+		"--link-base-url=https://git.example/project/-/blob/main/",
+		"--image-base-url=https://git.example/project/-/raw/main/",
+		"image",
+	})
+	if err != nil {
+		t.Fatalf("ParseArgs: %v", err)
+	}
 
-	if got != want {
-		t.Fatalf("got %q, want %q", got, want)
+	if cfg.LinkBaseURL == "" || cfg.ImageBaseURL == "" {
+		t.Fatalf("got LinkBaseURL=%q ImageBaseURL=%q", cfg.LinkBaseURL, cfg.ImageBaseURL)
 	}
 }
 
-func TestResolveBaseURLFromGitHubActions(t *testing.T) {
-	clearBaseURLEnv(t)
-	t.Setenv("GITHUB_SERVER_URL", "https://github.example")
-	t.Setenv("GITHUB_REPOSITORY", "group/project")
-	t.Setenv("GITHUB_SHA", "0123456789abcdef")
+func TestLinkAndImageBaseURLBothAbsentIsNotAnError(t *testing.T) {
+	var cfg Config
 
-	got := resolveBaseURL("")
-	want := "https://github.example/group/project/raw/0123456789abcdef/"
-	if got != want {
-		t.Fatalf("got %q, want %q", got, want)
+	if _, err := newTestParser(&cfg).ParseArgs([]string{"image"}); err != nil {
+		t.Fatalf("ParseArgs: %v", err)
 	}
-}
-func TestResolveBaseURLFromBitbucketPipelines(t *testing.T) {
-	clearBaseURLEnv(t)
-	t.Setenv("BITBUCKET_GIT_HTTP_ORIGIN", "https://bitbucket.example/workspace/project.git")
-	t.Setenv("BITBUCKET_COMMIT", "0123456789abcdef")
 
-	got := resolveBaseURL("")
-	want := "https://bitbucket.example/workspace/project/raw/0123456789abcdef/"
-	if got != want {
-		t.Fatalf("got %q, want %q", got, want)
-	}
-}
-func TestResolveBaseURLNoCIVars(t *testing.T) {
-	clearBaseURLEnv(t)
-	t.Setenv("CI_PROJECT_URL", "")
-	t.Setenv("CI_DEFAULT_BRANCH", "")
-
-	if got := resolveBaseURL(""); got != "" {
-		t.Fatalf("got %q, want empty", got)
+	if cfg.LinkBaseURL != "" || cfg.ImageBaseURL != "" {
+		t.Fatalf("got LinkBaseURL=%q ImageBaseURL=%q, want both empty", cfg.LinkBaseURL, cfg.ImageBaseURL)
 	}
 }
 

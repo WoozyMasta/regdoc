@@ -18,7 +18,8 @@ func rewriteWithBase(t *testing.T, relPath, src string) string {
 	out, err := Rewrite([]byte(src), RewriteConfig{
 		Root:          "root",
 		RelPath:       relPath,
-		BaseURL:       "https://git.example/project/-/raw/main/",
+		LinkBaseURL:   "https://git.example/project/-/raw/main/",
+		ImageBaseURL:  "https://git.example/project/-/raw/main/",
 		StripComments: true,
 	})
 	if err != nil {
@@ -129,13 +130,53 @@ func TestRewriteNoBaseURLLeavesRelativeUntouched(t *testing.T) {
 
 func TestRewriteEscapeAboveRootIsError(t *testing.T) {
 	_, err := Rewrite([]byte("[x](../../outside.md)\n"), RewriteConfig{
-		Root:    "root",
-		RelPath: "README.md",
-		BaseURL: "https://git.example/project/-/raw/main/",
+		Root:        "root",
+		RelPath:     "README.md",
+		LinkBaseURL: "https://git.example/project/-/raw/main/",
 	})
 	if err == nil {
 		t.Fatal("expected error for link resolving above root")
 	}
+}
+
+func TestRewriteLinkAndImageBasesAreIndependent(t *testing.T) {
+	src := "[docs](./guide.md)\n\n![logo](./logo.png)\n"
+
+	t.Run("link base only", func(t *testing.T) {
+		out, err := Rewrite([]byte(src), RewriteConfig{
+			Root:        "root",
+			RelPath:     "README.md",
+			LinkBaseURL: "https://git.example/project/-/blob/main/",
+		})
+		if err != nil {
+			t.Fatalf("Rewrite: %v", err)
+		}
+
+		if !strings.Contains(string(out), "(https://git.example/project/-/blob/main/guide.md)") {
+			t.Fatalf("expected link rewritten, got %q", out)
+		}
+		if !strings.Contains(string(out), "(logo.png)") && !strings.Contains(string(out), "(./logo.png)") {
+			t.Fatalf("expected image destination left relative, got %q", out)
+		}
+	})
+
+	t.Run("image base only", func(t *testing.T) {
+		out, err := Rewrite([]byte(src), RewriteConfig{
+			Root:         "root",
+			RelPath:      "README.md",
+			ImageBaseURL: "https://git.example/project/-/raw/main/",
+		})
+		if err != nil {
+			t.Fatalf("Rewrite: %v", err)
+		}
+
+		if !strings.Contains(string(out), "(https://git.example/project/-/raw/main/logo.png)") {
+			t.Fatalf("expected image rewritten, got %q", out)
+		}
+		if !strings.Contains(string(out), "(guide.md)") && !strings.Contains(string(out), "(./guide.md)") {
+			t.Fatalf("expected link destination left relative, got %q", out)
+		}
+	})
 }
 
 func TestRewriteCodeUntouched(t *testing.T) {
@@ -260,6 +301,37 @@ func TestRewriteEmbedLocalImage(t *testing.T) {
 
 	if strings.Contains(string(out), "(data:image/png;base64,") {
 		t.Fatalf("expected embedded image reference, got %q", out)
+	}
+
+	for _, want := range []string{
+		"![Logo][regdoc-image-1]",
+		"[regdoc-image-1]:data&colon;image/png;base64,iVBORw==",
+	} {
+		if !strings.Contains(string(out), want) {
+			t.Fatalf("expected %q in %q", want, out)
+		}
+	}
+}
+
+func TestRewriteEmbedImagesPrecedeImageBaseURL(t *testing.T) {
+	dir := t.TempDir()
+	imagePath := filepath.Join(dir, "logo.png")
+	if err := os.WriteFile(imagePath, []byte{0x89, 'P', 'N', 'G'}, 0o644); err != nil {
+		t.Fatalf("write image: %v", err)
+	}
+
+	out, err := Rewrite([]byte("![Logo](logo.png)\n"), RewriteConfig{
+		Root:         dir,
+		RelPath:      "README.md",
+		EmbedImages:  true,
+		ImageBaseURL: "https://git.example/project/-/raw/main/",
+	})
+	if err != nil {
+		t.Fatalf("Rewrite: %v", err)
+	}
+
+	if strings.Contains(string(out), "https://git.example/project/-/raw/main/logo.png") {
+		t.Fatalf("expected ImageBaseURL not applied to an embedded local image, got %q", out)
 	}
 
 	for _, want := range []string{

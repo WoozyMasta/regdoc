@@ -57,8 +57,6 @@ func TestBuildHeaderGenerated(t *testing.T) {
 }
 
 func TestBuildHeaderEmpty(t *testing.T) {
-	clearProjectEnv(t)
-
 	dir := t.TempDir()
 
 	got, err := BuildHeader(HeaderConfig{Root: dir})
@@ -137,70 +135,32 @@ func TestBuildHeaderDoesNotAddDocumentSeparator(t *testing.T) {
 	}
 }
 
-func TestBuildHeaderDiscoversCIProject(t *testing.T) {
-	cases := []struct {
-		name string
-		env  map[string]string
-		want string
-	}{
-		{
-			name: "GitLab",
-			env: map[string]string{
-				"CI_PROJECT_PATH":  "group/project",
-				"CI_PROJECT_TITLE": "Project",
-				"CI_PROJECT_URL":   "https://gitlab.example/group/project",
-			},
-			want: "#### Project\n\nGit project: [group/project](https://gitlab.example/group/project)",
-		},
-		{
-			name: "GitHub compatible Actions",
-			env: map[string]string{
-				"GITHUB_SERVER_URL": "https://forge.example",
-				"GITHUB_REPOSITORY": "group/project",
-			},
-			want: "#### project\n\nGit project: [group/project](https://forge.example/group/project)",
-		},
-		{
-			name: "Bitbucket Pipelines",
-			env: map[string]string{
-				"BITBUCKET_GIT_HTTP_ORIGIN": "https://bitbucket.example/workspace/project.git",
-				"BITBUCKET_REPO_FULL_NAME":  "workspace/project",
-				"BITBUCKET_REPO_SLUG":       "project",
-			},
-			want: "#### project\n\nGit project: [workspace/project](https://bitbucket.example/workspace/project)",
-		},
+func TestBuildHeaderUsesDiscoveredMetadataWhenNoExplicitValues(t *testing.T) {
+	got, err := BuildHeader(HeaderConfig{
+		Root:            t.TempDir(),
+		DiscoveredName:  "group/project",
+		DiscoveredTitle: "Project",
+		DiscoveredURL:   "https://gitlab.example/group/project",
+	})
+	if err != nil {
+		t.Fatalf("BuildHeader: %v", err)
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			clearProjectEnv(t)
-			for key, value := range tc.env {
-				t.Setenv(key, value)
-			}
-
-			got, err := BuildHeader(HeaderConfig{Root: t.TempDir()})
-			if err != nil {
-				t.Fatalf("BuildHeader: %v", err)
-			}
-
-			if string(got) != tc.want {
-				t.Fatalf("BuildHeader = %q, want %q", got, tc.want)
-			}
-		})
+	want := "#### Project\n\nGit project: [group/project](https://gitlab.example/group/project)"
+	if string(got) != want {
+		t.Fatalf("BuildHeader = %q, want %q", got, want)
 	}
 }
 
-func TestBuildHeaderExplicitValuesOverrideCI(t *testing.T) {
-	clearProjectEnv(t)
-	t.Setenv("CI_PROJECT_TITLE", "CI project")
-	t.Setenv("CI_PROJECT_PATH", "ci/project")
-	t.Setenv("CI_PROJECT_URL", "https://ci.example/project")
-
+func TestBuildHeaderExplicitValuesOverrideDiscovered(t *testing.T) {
 	got, err := BuildHeader(HeaderConfig{
-		Root:       t.TempDir(),
-		Title:      "Explicit title",
-		SourceName: "explicit/project",
-		SourceURL:  "https://example.com/project",
+		Root:            t.TempDir(),
+		Title:           "Explicit title",
+		SourceName:      "explicit/project",
+		SourceURL:       "https://example.com/project",
+		DiscoveredTitle: "CI project",
+		DiscoveredName:  "ci/project",
+		DiscoveredURL:   "https://ci.example/project",
 	})
 	if err != nil {
 		t.Fatalf("BuildHeader: %v", err)
@@ -209,23 +169,5 @@ func TestBuildHeaderExplicitValuesOverrideCI(t *testing.T) {
 	want := "#### Explicit title\n\nGit project: [explicit/project](https://example.com/project)"
 	if string(got) != want {
 		t.Fatalf("BuildHeader = %q, want %q", got, want)
-	}
-}
-
-// clearProjectEnv removes all CI metadata used by project discovery.
-func clearProjectEnv(t *testing.T) {
-	t.Helper()
-
-	for _, key := range []string{
-		"CI_PROJECT_PATH",
-		"CI_PROJECT_TITLE",
-		"CI_PROJECT_URL",
-		"GITHUB_REPOSITORY",
-		"GITHUB_SERVER_URL",
-		"BITBUCKET_GIT_HTTP_ORIGIN",
-		"BITBUCKET_REPO_FULL_NAME",
-		"BITBUCKET_REPO_SLUG",
-	} {
-		t.Setenv(key, "")
 	}
 }

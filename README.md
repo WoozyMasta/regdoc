@@ -149,34 +149,87 @@ An explicit list disables autodiscovery:
 regdoc quay.io/example/service README.md docs/*.md CHANGELOG.md
 ```
 
-`--base-url` turns relative file and image links into source repository links.
-When flag is absent, `regdoc` determines the URL from CI metadata in this order;
-an explicit `--base-url` always takes precedence:
+`--link-base-url` and `--image-base-url` turn relative file
+and image links into source repository links.
+A Markdown link needs a different route than a Markdown image
+on every supported forge, so the two are separate flags:
+set both or neither, setting only one is a configuration error.
 
-* GitLab CI:
-  `CI_PROJECT_URL` and `CI_DEFAULT_BRANCH`;
-  links use raw files from the default branch.
-* GitHub Actions, Gitea/Forgejo Actions:
-  `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`, and `GITHUB_SHA`;
-  links are pinned to a commit.
-* Bitbucket Pipelines:
- `BITBUCKET_GIT_HTTP_ORIGIN` and `BITBUCKET_COMMIT`;
-  links are also pinned to a commit.
+When both are absent, `regdoc` determines them from CI metadata,
+trying providers in this order and stopping at the first one
+whose CI sentinel matches -
+an incomplete profile leaves relative links untouched
+rather than falling back to another provider or a default branch:
 
-When those variables are absent or the CI environment is unsupported,
-relative links remain relative.
+* GitLab CI (`GITLAB_CI=true`):
+  `CI_PROJECT_URL` and `CI_COMMIT_SHA`;
+  links use `-/blob/<sha>/`, images use `-/raw/<sha>/`.
+* Bitbucket Pipelines (`BITBUCKET_BUILD_NUMBER` set):
+  `BITBUCKET_GIT_HTTP_ORIGIN` and `BITBUCKET_COMMIT`;
+  links use `src/<sha>/`, images use `raw/<sha>/`.
+* Forgejo Actions (`FORGEJO_ACTIONS=true`, Forgejo Runner v7.0.0+ only):
+  `FORGEJO_SERVER_URL`, `FORGEJO_REPOSITORY`, `FORGEJO_SHA`,
+  falling back per-field to the `GITHUB_*`-compatible aliases Forgejo also sets;
+  links use `src/commit/<sha>/`, images use `raw/commit/<sha>/`.
+  Older runners never set `FORGEJO_ACTIONS`
+  and are picked up by the GitHub Actions profile below instead -
+  there is no reliable way to tell them apart.
+* Gitea Actions (`GITEA_ACTIONS=true`):
+  `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`, `GITHUB_SHA`
+  (Gitea has no native variables of its own for these);
+  same route shape as Forgejo.
+* GitHub Actions (`GITHUB_ACTIONS=true`):
+  `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`, `GITHUB_SHA`;
+  links use `blob/<sha>/`, images use `raw/<sha>/`.
+* Woodpecker CI (`CI_FORGE_TYPE` set):
+  `CI_REPO_URL` and `CI_COMMIT_SHA`, with the route shape
+  selected by the reported forge type
+  (`github`, `gitlab`, `gitea`, `forgejo`, `bitbucket`, `bitbucket_dc`).
+
+All discovered links are pinned to a full commit SHA, never a branch name.
+An unsupported forge, a proxy, or a third-party CI system with no
+forge-identifying variable (Drone, CircleCI, Jenkins, and similar)
+can opt in explicitly:
+
+```sh
+regdoc \
+  --link-base-url="https://git.example/team/project/blob/0123456789abcdef/" \
+  --image-base-url="https://git.example/team/project/raw/0123456789abcdef/" \
+  quay.io/example/service
+```
+
+These bases include the forge route and revision.
+The source project URL shown in the header
+is configured separately with `--source-url`.
+
+The same override also covers a deliberate choice
+to point documentation at a mutable ref instead of the pinned commit,
+e.g. always linking to a project's default branch:
+
+```sh
+regdoc \
+  --link-base-url="$CI_PROJECT_URL/-/blob/$CI_DEFAULT_BRANCH/" \
+  --image-base-url="$CI_PROJECT_URL/-/raw/$CI_DEFAULT_BRANCH/" \
+  quay.io/example/service
+```
 
 The same CI data populates the generated header
 when `--title`, `--source-name`, and `--source-url` are not set:
 
 * GitLab CI:
   `CI_PROJECT_TITLE`, `CI_PROJECT_PATH`, `CI_PROJECT_URL`.
-* GitHub Actions, Gitea/Forgejo Actions:
-  `GITHUB_SERVER_URL` and `GITHUB_REPOSITORY`;
-  the title is the final repository path component.
 * Bitbucket Pipelines:
   `BITBUCKET_REPO_SLUG`, `BITBUCKET_REPO_FULL_NAME`,
   and `BITBUCKET_GIT_HTTP_ORIGIN`.
+* Forgejo Actions, Gitea Actions, GitHub Actions:
+  `GITHUB_SERVER_URL` and `GITHUB_REPOSITORY`
+  (or the native `FORGEJO_*` variables when Forgejo sets them);
+  the title is the final repository path component.
+* Woodpecker CI:
+  `CI_REPO_URL`; the title is the final path component.
+
+Explicit `--title`, `--source-name`,
+and `--source-url` always win over discovered metadata.
 
 For private projects, local images can be embedded as base64 in the document:
 
