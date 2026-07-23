@@ -38,6 +38,9 @@ REGDOC_USERNAME="example" REGDOC_TOKEN="$DOCKERHUB_TOKEN" \
   regdoc example/service
 ```
 
+Publishing a Docker Hub description requires a PAT with `Delete` permission;
+image push permission alone is not sufficient.
+
 For Quay, provide an OAuth token:
 
 ```sh
