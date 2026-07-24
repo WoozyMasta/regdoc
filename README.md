@@ -89,6 +89,25 @@ Without an explicit tag, behavior is unchanged from today.
 
 `--skip-tag-check` bypasses the gate and publishes regardless of tag order.
 
+## Release version in the header
+
+The generated header shows a `Release` line, when a version is known.
+`--release-version` sets it explicitly;
+without it, `regdoc` falls back to `IMAGE`'s explicit tag
+(the same tag the stale-publish gate above reads),
+shown as-is with no validation:
+
+```sh
+regdoc --release-version=3.1.1 quay.io/example/service
+```
+
+When the source forge and project URL are known
+(see "Documents, links, and images" below),
+the release is linked to that version's tag page in the forge -
+not a Releases page, since a Release object is optional and a git tag is not.
+Without a known forge or without any version at all,
+the line is either plain text or omitted entirely.
+
 ## Typical CI invocation
 
 This example selects the provider explicitly, supplies project metadata,

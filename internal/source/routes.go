@@ -43,3 +43,30 @@ func buildRoutes(kind forgeKind, projectURL, sha string) (link, image string) {
 		return "", ""
 	}
 }
+
+// releaseBaseURL returns the prefix to which a URL-escaped tag name
+// is appended to link to that tag's page in the forge.
+// It returns "" when projectURL is empty.
+func releaseBaseURL(kind forgeKind, projectURL string) string {
+	projectURL = strings.TrimSuffix(projectURL, "/")
+	if projectURL == "" {
+		return ""
+	}
+
+	switch kind {
+	case forgeGitHub:
+		return projectURL + "/releases/tag/"
+
+	case forgeGitLab:
+		return projectURL + "/-/tags/"
+
+	case forgeGiteaLike:
+		return projectURL + "/src/tag/"
+
+	case forgeBitbucket:
+		return projectURL + "/src/"
+
+	default:
+		return ""
+	}
+}

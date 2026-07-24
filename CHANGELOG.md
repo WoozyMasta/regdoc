@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning][].
   preventing an out-of-order CI build on an older release line
   from clobbering a newer repository description.
   `--skip-tag-check` bypasses it.
+* A `Release` line in the generated header.
+  `--release-version` sets it explicitly;
+  otherwise it falls back to `IMAGE`'s explicit tag.
+  Linked to that version's tag page in the source forge
+  when the forge and project URL are known.
 
 ### Changed
 

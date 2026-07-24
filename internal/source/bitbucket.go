@@ -31,10 +31,11 @@ func detectBitbucket(getenv EnvGetter) (Source, bool) {
 	link, image := buildRoutes(forgeBitbucket, origin, getenv("BITBUCKET_COMMIT"))
 
 	return Source{
-		Name:         name,
-		Title:        title,
-		ProjectURL:   origin,
-		LinkBaseURL:  link,
-		ImageBaseURL: image,
+		Name:           name,
+		Title:          title,
+		ProjectURL:     origin,
+		LinkBaseURL:    link,
+		ImageBaseURL:   image,
+		ReleaseBaseURL: releaseBaseURL(forgeBitbucket, origin),
 	}, true
 }

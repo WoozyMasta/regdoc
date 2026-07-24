@@ -45,6 +45,7 @@ regdoc collects repository Markdown and publishes it as the description of a Doc
 |`--title`|Project title used in the generated header|`$REGDOC_TITLE`|no|
 |`--source-name`|Project name shown in the generated header|`$REGDOC_SOURCE_NAME`|no|
 |`--source-url`|Project URL shown in the generated header|`$REGDOC_SOURCE_URL`|no|
+|`--release-version`|Release version shown in the generated header; defaults to IMAGE's explicit tag|`$REGDOC_RELEASE_VERSION`|no|
 |`--license`|License file to identify in the header (default: auto-discover LICENSE in --root)|`$REGDOC_LICENSE`|no|
 |`--author`|Author shown in the generated header|`$REGDOC_AUTHOR`|no|
 |`--copyright`|Copyright notice shown in the generated header|`$REGDOC_COPYRIGHT`|no|

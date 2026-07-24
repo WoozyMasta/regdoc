@@ -243,6 +243,98 @@ func TestRunSkipsMarkdownProcessingForOlderExplicitTag(t *testing.T) {
 	}
 }
 
+func TestRunReleaseVersionFlagWinsOverImageTag(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "README.md", "# Hello\n")
+
+	cfg := testConfig(dir)
+	cfg.Provider = "auto"
+	cfg.Output = "-"
+	cfg.ReleaseVersion = "2.0.0"
+	cfg.Positional.Image = "custom.invalid.example/project/image:1.0.0"
+
+	var stdout, stderr bytes.Buffer
+
+	if err := Run(context.Background(), cfg, &stdout, &stderr); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	out := stdout.String()
+
+	if !strings.Contains(out, "2.0.0") {
+		t.Fatalf("expected --release-version to appear, got %q", out)
+	}
+
+	if strings.Contains(out, "1.0.0") {
+		t.Fatalf("expected IMAGE's tag not to appear when --release-version is set, got %q", out)
+	}
+}
+
+func TestRunReleaseVersionFallsBackToImageTag(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "README.md", "# Hello\n")
+
+	cfg := testConfig(dir)
+	cfg.Provider = "auto"
+	cfg.Output = "-"
+	cfg.Positional.Image = "custom.invalid.example/project/image:1.5.0"
+
+	var stdout, stderr bytes.Buffer
+
+	if err := Run(context.Background(), cfg, &stdout, &stderr); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	if out := stdout.String(); !strings.Contains(out, "1.5.0") {
+		t.Fatalf("expected IMAGE's tag to be used as the release version, got %q", out)
+	}
+}
+
+func TestRunNoReleaseVersionOrTagOmitsReleaseLine(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "README.md", "# Hello\n")
+
+	cfg := testConfig(dir)
+	cfg.Provider = "auto"
+	cfg.Output = "-"
+	cfg.Positional.Image = "custom.invalid.example/project/image"
+
+	var stdout, stderr bytes.Buffer
+
+	if err := Run(context.Background(), cfg, &stdout, &stderr); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	if out := stdout.String(); strings.Contains(out, "Release:") {
+		t.Fatalf("expected no Release line without --release-version or an IMAGE tag, got %q", out)
+	}
+}
+
+func TestRunReleaseVersionLinksToDiscoveredTagPage(t *testing.T) {
+	t.Setenv("GITLAB_CI", "true")
+	t.Setenv("CI_PROJECT_URL", "https://gitlab.example/group/project")
+	t.Setenv("CI_COMMIT_SHA", "0123456789abcdef0123456789abcdef01234567")
+
+	dir := t.TempDir()
+	writeFile(t, dir, "README.md", "# Hello\n")
+
+	cfg := testConfig(dir)
+	cfg.Provider = "auto"
+	cfg.Output = "-"
+	cfg.Positional.Image = "custom.invalid.example/project/image:1.2.3"
+
+	var stdout, stderr bytes.Buffer
+
+	if err := Run(context.Background(), cfg, &stdout, &stderr); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	want := "Release: [1.2.3](https://gitlab.example/group/project/-/tags/1.2.3)"
+	if out := stdout.String(); !strings.Contains(out, want) {
+		t.Fatalf("expected %q in output, got %q", want, out)
+	}
+}
+
 func TestRunOutputDashWritesStdoutNoNetwork(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "README.md", "# Hello\n")

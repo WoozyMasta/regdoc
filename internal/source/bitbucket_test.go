@@ -19,11 +19,12 @@ func TestDetectBitbucket(t *testing.T) {
 	}
 
 	want := Source{
-		Name:         "workspace/project",
-		Title:        "project",
-		ProjectURL:   "https://bitbucket.example/workspace/project",
-		LinkBaseURL:  "https://bitbucket.example/workspace/project/src/0123456789abcdef/",
-		ImageBaseURL: "https://bitbucket.example/workspace/project/raw/0123456789abcdef/",
+		Name:           "workspace/project",
+		Title:          "project",
+		ProjectURL:     "https://bitbucket.example/workspace/project",
+		LinkBaseURL:    "https://bitbucket.example/workspace/project/src/0123456789abcdef/",
+		ImageBaseURL:   "https://bitbucket.example/workspace/project/raw/0123456789abcdef/",
+		ReleaseBaseURL: "https://bitbucket.example/workspace/project/src/",
 	}
 	if got != want {
 		t.Fatalf("got %+v, want %+v", got, want)
@@ -50,5 +51,8 @@ func TestDetectBitbucketIncompleteProfileLeavesBasesEmpty(t *testing.T) {
 	}
 	if got.LinkBaseURL != "" || got.ImageBaseURL != "" {
 		t.Fatalf("got %+v, want empty bases", got)
+	}
+	if got.ReleaseBaseURL != "" {
+		t.Fatalf("got ReleaseBaseURL %q, want empty (no origin known)", got.ReleaseBaseURL)
 	}
 }

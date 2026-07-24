@@ -24,6 +24,8 @@ type HeaderConfig struct {
 	Author          string // Author is included in the generated header.
 	Copyright       string // Copyright is included in the generated header.
 	License         string // License is an explicit path to a license file. Empty auto-discover a "LICENSE" file.
+	Release         string // Release is the version shown in the generated header. Already resolved by the caller.
+	ReleaseURL      string // ReleaseURL links Release to its tag page. Empty renders Release as plain text.
 	DiscoveredName  string // DiscoveredName is CI-resolved project metadata; SourceName wins when set.
 	DiscoveredTitle string // DiscoveredTitle is CI-resolved project metadata; Title wins when set.
 	DiscoveredURL   string // DiscoveredURL is CI-resolved project metadata; SourceURL wins when set.
@@ -46,7 +48,10 @@ func BuildHeader(cfg HeaderConfig) ([]byte, error) {
 	if title != "" {
 		paragraphs = append(paragraphs, "#### "+title)
 	}
-	if line := projectLine(sourceName, sourceURL); line != "" {
+	if line := labeledLink("Git project", sourceName, sourceURL); line != "" {
+		paragraphs = append(paragraphs, line)
+	}
+	if line := labeledLink("Release", cfg.Release, cfg.ReleaseURL); line != "" {
 		paragraphs = append(paragraphs, line)
 	}
 	if cfg.Author != "" {
@@ -66,17 +71,18 @@ func BuildHeader(cfg HeaderConfig) ([]byte, error) {
 	return []byte(strings.Join(paragraphs, "\n\n")), nil
 }
 
-// projectLine renders project metadata from the available name and URL.
-func projectLine(name, url string) string {
+// labeledLink renders "label: [text](url)" when both are available,
+// "label: text" or "label: url" when only one is, and "" when neither is set.
+func labeledLink(label, text, url string) string {
 	switch {
-	case name != "" && url != "":
-		return fmt.Sprintf("Git project: [%s](%s)", name, url)
+	case text != "" && url != "":
+		return fmt.Sprintf("%s: [%s](%s)", label, text, url)
 
-	case name != "":
-		return "Git project: " + name
+	case text != "":
+		return label + ": " + text
 
 	case url != "":
-		return "Git project: " + url
+		return label + ": " + url
 
 	default:
 		return ""

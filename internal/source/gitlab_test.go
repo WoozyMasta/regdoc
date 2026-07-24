@@ -19,11 +19,12 @@ func TestDetectGitLab(t *testing.T) {
 	}
 
 	want := Source{
-		Name:         "group/project",
-		Title:        "Project",
-		ProjectURL:   "https://gitlab.example/group/project",
-		LinkBaseURL:  "https://gitlab.example/group/project/-/blob/0123456789abcdef/",
-		ImageBaseURL: "https://gitlab.example/group/project/-/raw/0123456789abcdef/",
+		Name:           "group/project",
+		Title:          "Project",
+		ProjectURL:     "https://gitlab.example/group/project",
+		LinkBaseURL:    "https://gitlab.example/group/project/-/blob/0123456789abcdef/",
+		ImageBaseURL:   "https://gitlab.example/group/project/-/raw/0123456789abcdef/",
+		ReleaseBaseURL: "https://gitlab.example/group/project/-/tags/",
 	}
 	if got != want {
 		t.Fatalf("got %+v, want %+v", got, want)
@@ -45,6 +46,9 @@ func TestDetectGitLabIncompleteProfileLeavesBasesEmpty(t *testing.T) {
 	}
 	if got.Name != "group/project" {
 		t.Fatalf("got Name %q, want header metadata still populated", got.Name)
+	}
+	if want := "https://gitlab.example/group/project/-/tags/"; got.ReleaseBaseURL != want {
+		t.Fatalf("got ReleaseBaseURL %q, want %q (does not require a commit SHA)", got.ReleaseBaseURL, want)
 	}
 }
 

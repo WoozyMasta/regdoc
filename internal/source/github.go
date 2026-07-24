@@ -35,10 +35,11 @@ func githubCompatibleSource(getenv EnvGetter, kind forgeKind) Source {
 	link, image := buildRoutes(kind, projectURL, getenv("GITHUB_SHA"))
 
 	return Source{
-		Name:         repository,
-		Title:        title,
-		ProjectURL:   projectURL,
-		LinkBaseURL:  link,
-		ImageBaseURL: image,
+		Name:           repository,
+		Title:          title,
+		ProjectURL:     projectURL,
+		LinkBaseURL:    link,
+		ImageBaseURL:   image,
+		ReleaseBaseURL: releaseBaseURL(kind, projectURL),
 	}
 }

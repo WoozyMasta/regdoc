@@ -14,10 +14,11 @@ func detectGitLab(getenv EnvGetter) (Source, bool) {
 	link, image := buildRoutes(forgeGitLab, projectURL, getenv("CI_COMMIT_SHA"))
 
 	return Source{
-		Name:         getenv("CI_PROJECT_PATH"),
-		Title:        getenv("CI_PROJECT_TITLE"),
-		ProjectURL:   projectURL,
-		LinkBaseURL:  link,
-		ImageBaseURL: image,
+		Name:           getenv("CI_PROJECT_PATH"),
+		Title:          getenv("CI_PROJECT_TITLE"),
+		ProjectURL:     projectURL,
+		LinkBaseURL:    link,
+		ImageBaseURL:   image,
+		ReleaseBaseURL: releaseBaseURL(forgeGitLab, projectURL),
 	}, true
 }

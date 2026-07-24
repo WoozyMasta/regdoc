@@ -135,6 +135,59 @@ func TestBuildHeaderDoesNotAddDocumentSeparator(t *testing.T) {
 	}
 }
 
+func TestBuildHeaderReleaseWithURL(t *testing.T) {
+	got, err := BuildHeader(HeaderConfig{
+		Root:       t.TempDir(),
+		Title:      "My Project",
+		SourceName: "group/project",
+		SourceURL:  "https://git.example/group/project",
+		Release:    "1.2.3",
+		ReleaseURL: "https://git.example/group/project/-/tags/1.2.3",
+		Author:     "Jane Doe",
+	})
+	if err != nil {
+		t.Fatalf("BuildHeader: %v", err)
+	}
+
+	want := "#### My Project\n\n" +
+		"Git project: [group/project](https://git.example/group/project)\n\n" +
+		"Release: [1.2.3](https://git.example/group/project/-/tags/1.2.3)\n\n" +
+		"Author: Jane Doe"
+	if string(got) != want {
+		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestBuildHeaderReleasePlainTextWithoutURL(t *testing.T) {
+	got, err := BuildHeader(HeaderConfig{
+		Root:    t.TempDir(),
+		Title:   "x",
+		Release: "1.2.3",
+	})
+	if err != nil {
+		t.Fatalf("BuildHeader: %v", err)
+	}
+
+	if !strings.Contains(string(got), "Release: 1.2.3") {
+		t.Fatalf("expected plain-text Release line, got %q", got)
+	}
+
+	if strings.Contains(string(got), "[1.2.3]") {
+		t.Fatalf("expected no link without ReleaseURL, got %q", got)
+	}
+}
+
+func TestBuildHeaderNoReleaseOmitsLine(t *testing.T) {
+	got, err := BuildHeader(HeaderConfig{Root: t.TempDir(), Title: "x"})
+	if err != nil {
+		t.Fatalf("BuildHeader: %v", err)
+	}
+
+	if strings.Contains(string(got), "Release:") {
+		t.Fatalf("expected no Release line, got %q", got)
+	}
+}
+
 func TestBuildHeaderUsesDiscoveredMetadataWhenNoExplicitValues(t *testing.T) {
 	got, err := BuildHeader(HeaderConfig{
 		Root:            t.TempDir(),

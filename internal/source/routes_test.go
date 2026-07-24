@@ -63,6 +63,61 @@ func TestBuildRoutes(t *testing.T) {
 	}
 }
 
+func TestReleaseBaseURL(t *testing.T) {
+	cases := []struct {
+		name       string
+		kind       forgeKind
+		projectURL string
+		want       string
+	}{
+		{
+			name:       "GitHub",
+			kind:       forgeGitHub,
+			projectURL: "https://github.com/group/project",
+			want:       "https://github.com/group/project/releases/tag/",
+		},
+		{
+			name:       "GitLab",
+			kind:       forgeGitLab,
+			projectURL: "https://gitlab.example/group/project",
+			want:       "https://gitlab.example/group/project/-/tags/",
+		},
+		{
+			name:       "Gitea/Forgejo",
+			kind:       forgeGiteaLike,
+			projectURL: "https://gitea.example/group/project",
+			want:       "https://gitea.example/group/project/src/tag/",
+		},
+		{
+			name:       "Bitbucket",
+			kind:       forgeBitbucket,
+			projectURL: "https://bitbucket.example/workspace/project",
+			want:       "https://bitbucket.example/workspace/project/src/",
+		},
+		{
+			name:       "trailing slash trimmed",
+			kind:       forgeGitHub,
+			projectURL: "https://github.com/group/project/",
+			want:       "https://github.com/group/project/releases/tag/",
+		},
+		{
+			name:       "empty project URL",
+			kind:       forgeGitHub,
+			projectURL: "",
+			want:       "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := releaseBaseURL(tc.kind, tc.projectURL)
+			if got != tc.want {
+				t.Fatalf("releaseBaseURL = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestBuildRoutesEmptyInputsYieldEmptyRoutes(t *testing.T) {
 	cases := []struct {
 		name       string

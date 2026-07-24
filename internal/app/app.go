@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/woozymasta/regdoc/internal/auth"
@@ -97,6 +98,18 @@ func Run(ctx context.Context, cfg Config, stdout, stderr io.Writer) error {
 	// and reused for both header metadata and link/image base URLs.
 	resolved := source.Resolve(os.Getenv)
 
+	// An explicit --release-version wins over IMAGE's tag; neither is required.
+	// The link is only built when both the version and a tag-page base URL are known.
+	releaseVersion := cfg.ReleaseVersion
+	if releaseVersion == "" {
+		releaseVersion, _ = target.ExplicitTag(cfg.Positional.Image)
+	}
+
+	var releaseURL string
+	if releaseVersion != "" && resolved.ReleaseBaseURL != "" {
+		releaseURL = resolved.ReleaseBaseURL + url.PathEscape(releaseVersion)
+	}
+
 	// Header metadata is resolved once and reused by fallback attempts.
 	header, err := document.BuildHeader(document.HeaderConfig{
 		Root:            cfg.Root,
@@ -106,6 +119,8 @@ func Run(ctx context.Context, cfg Config, stdout, stderr io.Writer) error {
 		Author:          cfg.Author,
 		Copyright:       cfg.Copyright,
 		License:         cfg.License,
+		Release:         releaseVersion,
+		ReleaseURL:      releaseURL,
 		DiscoveredName:  resolved.Name,
 		DiscoveredTitle: resolved.Title,
 		DiscoveredURL:   resolved.ProjectURL,

@@ -8,16 +8,17 @@ import "testing"
 
 func TestDetectWoodpecker(t *testing.T) {
 	cases := []struct {
-		forgeType string
-		wantLink  string
-		wantImage string
+		forgeType   string
+		wantLink    string
+		wantImage   string
+		wantRelease string
 	}{
-		{"github", "https://forge.example/group/project/blob/0123456789abcdef/", "https://forge.example/group/project/raw/0123456789abcdef/"},
-		{"gitlab", "https://forge.example/group/project/-/blob/0123456789abcdef/", "https://forge.example/group/project/-/raw/0123456789abcdef/"},
-		{"gitea", "https://forge.example/group/project/src/commit/0123456789abcdef/", "https://forge.example/group/project/raw/commit/0123456789abcdef/"},
-		{"forgejo", "https://forge.example/group/project/src/commit/0123456789abcdef/", "https://forge.example/group/project/raw/commit/0123456789abcdef/"},
-		{"bitbucket", "https://forge.example/group/project/src/0123456789abcdef/", "https://forge.example/group/project/raw/0123456789abcdef/"},
-		{"bitbucket_dc", "https://forge.example/group/project/src/0123456789abcdef/", "https://forge.example/group/project/raw/0123456789abcdef/"},
+		{"github", "https://forge.example/group/project/blob/0123456789abcdef/", "https://forge.example/group/project/raw/0123456789abcdef/", "https://forge.example/group/project/releases/tag/"},
+		{"gitlab", "https://forge.example/group/project/-/blob/0123456789abcdef/", "https://forge.example/group/project/-/raw/0123456789abcdef/", "https://forge.example/group/project/-/tags/"},
+		{"gitea", "https://forge.example/group/project/src/commit/0123456789abcdef/", "https://forge.example/group/project/raw/commit/0123456789abcdef/", "https://forge.example/group/project/src/tag/"},
+		{"forgejo", "https://forge.example/group/project/src/commit/0123456789abcdef/", "https://forge.example/group/project/raw/commit/0123456789abcdef/", "https://forge.example/group/project/src/tag/"},
+		{"bitbucket", "https://forge.example/group/project/src/0123456789abcdef/", "https://forge.example/group/project/raw/0123456789abcdef/", "https://forge.example/group/project/src/"},
+		{"bitbucket_dc", "https://forge.example/group/project/src/0123456789abcdef/", "https://forge.example/group/project/raw/0123456789abcdef/", "https://forge.example/group/project/src/"},
 	}
 
 	for _, tc := range cases {
@@ -33,6 +34,9 @@ func TestDetectWoodpecker(t *testing.T) {
 			if got.LinkBaseURL != tc.wantLink || got.ImageBaseURL != tc.wantImage {
 				t.Fatalf("got link=%q image=%q, want link=%q image=%q",
 					got.LinkBaseURL, got.ImageBaseURL, tc.wantLink, tc.wantImage)
+			}
+			if got.ReleaseBaseURL != tc.wantRelease {
+				t.Fatalf("got ReleaseBaseURL = %q, want %q", got.ReleaseBaseURL, tc.wantRelease)
 			}
 			if got.Name != "project" || got.ProjectURL != "https://forge.example/group/project" {
 				t.Fatalf("got %+v, unexpected header metadata", got)
@@ -50,7 +54,7 @@ func TestDetectWoodpeckerUnrecognizedForgeTypeKeepsHeaderMetadataOnly(t *testing
 	if !ok {
 		t.Fatal("expected sentinel match")
 	}
-	if got.LinkBaseURL != "" || got.ImageBaseURL != "" {
+	if got.LinkBaseURL != "" || got.ImageBaseURL != "" || got.ReleaseBaseURL != "" {
 		t.Fatalf("got %+v, want empty bases for an unrecognized forge type", got)
 	}
 	if got.ProjectURL != "https://forge.example/group/project" {

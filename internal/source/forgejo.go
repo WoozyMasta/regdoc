@@ -32,11 +32,12 @@ func detectForgejo(getenv EnvGetter) (Source, bool) {
 	link, image := buildRoutes(forgeGiteaLike, projectURL, sha)
 
 	return Source{
-		Name:         repository,
-		Title:        title,
-		ProjectURL:   projectURL,
-		LinkBaseURL:  link,
-		ImageBaseURL: image,
+		Name:           repository,
+		Title:          title,
+		ProjectURL:     projectURL,
+		LinkBaseURL:    link,
+		ImageBaseURL:   image,
+		ReleaseBaseURL: releaseBaseURL(forgeGiteaLike, projectURL),
 	}, true
 }
 

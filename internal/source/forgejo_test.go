@@ -21,11 +21,12 @@ func TestDetectForgejoNativeVariablesWinOverGitHubAlias(t *testing.T) {
 	}
 
 	want := Source{
-		Name:         "group/project",
-		Title:        "project",
-		ProjectURL:   "https://forgejo.example/group/project",
-		LinkBaseURL:  "https://forgejo.example/group/project/src/commit/0123456789abcdef/",
-		ImageBaseURL: "https://forgejo.example/group/project/raw/commit/0123456789abcdef/",
+		Name:           "group/project",
+		Title:          "project",
+		ProjectURL:     "https://forgejo.example/group/project",
+		LinkBaseURL:    "https://forgejo.example/group/project/src/commit/0123456789abcdef/",
+		ImageBaseURL:   "https://forgejo.example/group/project/raw/commit/0123456789abcdef/",
+		ReleaseBaseURL: "https://forgejo.example/group/project/src/tag/",
 	}
 	if got != want {
 		t.Fatalf("got %+v, want %+v", got, want)
@@ -46,11 +47,12 @@ func TestDetectForgejoFallsBackToGitHubAliasesPerField(t *testing.T) {
 	}
 
 	want := Source{
-		Name:         "group/project",
-		Title:        "project",
-		ProjectURL:   "https://forgejo.example/group/project",
-		LinkBaseURL:  "https://forgejo.example/group/project/src/commit/0123456789abcdef/",
-		ImageBaseURL: "https://forgejo.example/group/project/raw/commit/0123456789abcdef/",
+		Name:           "group/project",
+		Title:          "project",
+		ProjectURL:     "https://forgejo.example/group/project",
+		LinkBaseURL:    "https://forgejo.example/group/project/src/commit/0123456789abcdef/",
+		ImageBaseURL:   "https://forgejo.example/group/project/raw/commit/0123456789abcdef/",
+		ReleaseBaseURL: "https://forgejo.example/group/project/src/tag/",
 	}
 	if got != want {
 		t.Fatalf("got %+v, want %+v", got, want)

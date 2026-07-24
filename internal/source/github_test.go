@@ -18,11 +18,12 @@ func TestDetectGitHub(t *testing.T) {
 	}
 
 	want := Source{
-		Name:         "group/project",
-		Title:        "project",
-		ProjectURL:   "https://github.com/group/project",
-		LinkBaseURL:  "https://github.com/group/project/blob/0123456789abcdef/",
-		ImageBaseURL: "https://github.com/group/project/raw/0123456789abcdef/",
+		Name:           "group/project",
+		Title:          "project",
+		ProjectURL:     "https://github.com/group/project",
+		LinkBaseURL:    "https://github.com/group/project/blob/0123456789abcdef/",
+		ImageBaseURL:   "https://github.com/group/project/raw/0123456789abcdef/",
+		ReleaseBaseURL: "https://github.com/group/project/releases/tag/",
 	}
 	if got != want {
 		t.Fatalf("got %+v, want %+v", got, want)
@@ -41,6 +42,9 @@ func TestDetectGitHubIncompleteProfileLeavesBasesEmpty(t *testing.T) {
 	}
 	if got.LinkBaseURL != "" || got.ImageBaseURL != "" {
 		t.Fatalf("got %+v, want empty bases", got)
+	}
+	if want := "https://github.com/group/project/releases/tag/"; got.ReleaseBaseURL != want {
+		t.Fatalf("got ReleaseBaseURL %q, want %q (does not require a commit SHA)", got.ReleaseBaseURL, want)
 	}
 }
 

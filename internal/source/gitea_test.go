@@ -18,11 +18,12 @@ func TestDetectGitea(t *testing.T) {
 	}
 
 	want := Source{
-		Name:         "group/project",
-		Title:        "project",
-		ProjectURL:   "https://gitea.example/group/project",
-		LinkBaseURL:  "https://gitea.example/group/project/src/commit/0123456789abcdef/",
-		ImageBaseURL: "https://gitea.example/group/project/raw/commit/0123456789abcdef/",
+		Name:           "group/project",
+		Title:          "project",
+		ProjectURL:     "https://gitea.example/group/project",
+		LinkBaseURL:    "https://gitea.example/group/project/src/commit/0123456789abcdef/",
+		ImageBaseURL:   "https://gitea.example/group/project/raw/commit/0123456789abcdef/",
+		ReleaseBaseURL: "https://gitea.example/group/project/src/tag/",
 	}
 	if got != want {
 		t.Fatalf("got %+v, want %+v", got, want)
@@ -51,7 +52,7 @@ func TestDetectGiteaIncompleteProfileLeavesBasesEmpty(t *testing.T) {
 	if !ok {
 		t.Fatal("expected sentinel match even with incomplete metadata")
 	}
-	if got.LinkBaseURL != "" || got.ImageBaseURL != "" {
+	if got.LinkBaseURL != "" || got.ImageBaseURL != "" || got.ReleaseBaseURL != "" {
 		t.Fatalf("got %+v, want empty bases", got)
 	}
 }

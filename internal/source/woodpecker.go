@@ -26,17 +26,19 @@ func detectWoodpecker(getenv EnvGetter) (Source, bool) {
 		name = path.Base(projectURL)
 	}
 
-	var link, image string
+	var link, image, release string
 	if kind, known := woodpeckerForgeKind(forgeType); known {
 		link, image = buildRoutes(kind, projectURL, getenv("CI_COMMIT_SHA"))
+		release = releaseBaseURL(kind, projectURL)
 	}
 
 	return Source{
-		Name:         name,
-		Title:        name,
-		ProjectURL:   projectURL,
-		LinkBaseURL:  link,
-		ImageBaseURL: image,
+		Name:           name,
+		Title:          name,
+		ProjectURL:     projectURL,
+		LinkBaseURL:    link,
+		ImageBaseURL:   image,
+		ReleaseBaseURL: release,
 	}, true
 }
 

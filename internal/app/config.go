@@ -36,15 +36,16 @@ type TargetOptions struct {
 
 // DocumentOptions controls document discovery, rewriting and generated metadata.
 type DocumentOptions struct {
-	Title        string `long:"title"          description:"Project title used in the generated header"`
-	SourceName   string `long:"source-name"    description:"Project name shown in the generated header"`
-	SourceURL    string `long:"source-url"     description:"Project URL shown in the generated header"`
-	License      string `long:"license"        description:"License file to identify in the header (default: auto-discover LICENSE in --root)" completion:"file" validate-readable:"yes" validate-existing-file:"yes"`
-	Author       string `long:"author"         description:"Author shown in the generated header"`
-	Copyright    string `long:"copyright"      description:"Copyright notice shown in the generated header"`
-	LinkBaseURL  string `long:"link-base-url"  description:"Base URL prepended to relative Markdown link destinations; overrides CI URL discovery (requires --image-base-url)" and:"source-base-url"`
-	ImageBaseURL string `long:"image-base-url" description:"Base URL prepended to relative Markdown image destinations; overrides CI URL discovery (requires --link-base-url)" and:"source-base-url"`
-	KeepComments bool   `long:"keep-comments"  description:"Keep HTML comments instead of stripping them from the published Markdown"`
+	Title          string `long:"title"           description:"Project title used in the generated header"`
+	SourceName     string `long:"source-name"     description:"Project name shown in the generated header"`
+	SourceURL      string `long:"source-url"      description:"Project URL shown in the generated header"`
+	ReleaseVersion string `long:"release-version" description:"Release version shown in the generated header; defaults to IMAGE's explicit tag"`
+	License        string `long:"license"         description:"License file to identify in the header (default: auto-discover LICENSE in --root)" completion:"file" validate-readable:"yes" validate-existing-file:"yes"`
+	Author         string `long:"author"          description:"Author shown in the generated header"`
+	Copyright      string `long:"copyright"       description:"Copyright notice shown in the generated header"`
+	LinkBaseURL    string `long:"link-base-url"   description:"Base URL prepended to relative Markdown link destinations; overrides CI URL discovery (requires --image-base-url)" and:"source-base-url"`
+	ImageBaseURL   string `long:"image-base-url"  description:"Base URL prepended to relative Markdown image destinations; overrides CI URL discovery (requires --link-base-url)" and:"source-base-url"`
+	KeepComments   bool   `long:"keep-comments"   description:"Keep HTML comments instead of stripping them from the published Markdown"`
 }
 
 // OutputOptions controls the generated repository description.

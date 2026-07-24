@@ -11,11 +11,12 @@ package source
 // Source is CI-discovered project metadata and, when a complete profile is available,
 // base URLs for rewriting relative Markdown link and image destinations.
 type Source struct {
-	Name         string // Name is the repository name/path, for header metadata.
-	Title        string // Title is a display title, for header metadata.
-	ProjectURL   string // ProjectURL is the project web URL, for header metadata.
-	LinkBaseURL  string // LinkBaseURL prefixes relative Markdown link destinations. Empty unless the profile is complete.
-	ImageBaseURL string // ImageBaseURL prefixes relative Markdown image destinations. Empty unless the profile is complete.
+	Name           string // Name is the repository name/path, for header metadata.
+	Title          string // Title is a display title, for header metadata.
+	ProjectURL     string // ProjectURL is the project web URL, for header metadata.
+	LinkBaseURL    string // LinkBaseURL prefixes relative Markdown link destinations. Empty unless the profile is complete.
+	ImageBaseURL   string // ImageBaseURL prefixes relative Markdown image destinations. Empty unless the profile is complete.
+	ReleaseBaseURL string // ReleaseBaseURL prefixes a release version to link to its tag page. Empty unless ProjectURL is known.
 }
 
 // EnvGetter looks up an environment variable, returning "" when unset.
