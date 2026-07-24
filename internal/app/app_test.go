@@ -213,6 +213,36 @@ func TestRunSkipTagCheckBypassesGate(t *testing.T) {
 	}
 }
 
+func TestRunSkipsMarkdownProcessingForOlderExplicitTag(t *testing.T) {
+	srv, published := tagGateServer(t, []string{"1.0.0", "2.0.0"})
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+
+	dir := t.TempDir()
+	writeFile(t, dir, "README.md", "# Hello\n")
+
+	cfg := testConfig(dir)
+	cfg.Provider = "quay"
+	cfg.PlainHTTP = true
+	cfg.Token = "quay-token"
+	// An explicit license path that does not exist makes document.BuildHeader fail;
+	// if the tag-order gate runs before document processing (as it must),
+	// Run never reaches BuildHeader and this never surfaces.
+	cfg.License = "does-not-exist.txt"
+	cfg.Positional.Image = u.Host + "/group/image:1.5.0"
+
+	var stdout, stderr bytes.Buffer
+
+	if err := Run(context.Background(), cfg, &stdout, &stderr); err != nil {
+		t.Fatalf("Run: %v (markdown/header processing must be skipped before it can fail)", err)
+	}
+
+	if *published {
+		t.Fatal("expected publish to be skipped for a tag older than the existing latest")
+	}
+}
+
 func TestRunOutputDashWritesStdoutNoNetwork(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "README.md", "# Hello\n")

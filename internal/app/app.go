@@ -42,6 +42,57 @@ func Run(ctx context.Context, cfg Config, stdout, stderr io.Writer) error {
 		return nil
 	}
 
+	// TLS policy applies to both probing and provider API requests.
+	scheme := "https"
+	if cfg.PlainHTTP {
+		scheme = "http"
+	}
+
+	httpClient := httpx.NewClient(httpx.Options{
+		Timeout:       cfg.Timeout,
+		TLSSkipVerify: cfg.TLSSkipVerify,
+		UserAgent:     cfg.UserAgent,
+	})
+
+	// Provider type controls anchor rendering and publisher selection.
+	providerType, err := resolveProviderType(ctx, cfg, tgt, scheme, httpClient, reporter)
+	if err != nil {
+		return err
+	}
+
+	// A local destination never resolves credentials or publishes;
+	// only the publish path needs a Publisher, so credentials
+	// and the tag-order gate are resolved here, before any markdown rendering,
+	// so a stale tag never pays for work whose result would be discarded.
+	var pub provider.Publisher
+
+	if cfg.Output == "" {
+		explicit := auth.Explicit{Username: cfg.Username, Password: cfg.Password, Token: cfg.Token}
+
+		pub, err = newPublisher(httpClient, providerType, scheme, explicit, tgt)
+		if err != nil {
+			if cfg.Optional {
+				reporter.Infof("optional: %v", err)
+				return nil
+			}
+
+			return err
+		}
+
+		if !cfg.SkipTagCheck {
+			if lister, ok := pub.(provider.TagLister); ok {
+				skip, gerr := tagOrderGate(ctx, cfg, lister, tgt, reporter)
+				if gerr != nil {
+					return gerr
+				}
+
+				if skip {
+					return nil
+				}
+			}
+		}
+	}
+
 	// Source discovery is resolved once from CI environment variables
 	// and reused for both header metadata and link/image base URLs.
 	resolved := source.Resolve(os.Getenv)
@@ -82,24 +133,6 @@ func Run(ctx context.Context, cfg Config, stdout, stderr io.Writer) error {
 		return fmt.Errorf("process documents: %w", err)
 	}
 
-	// TLS policy applies to both probing and provider API requests.
-	scheme := "https"
-	if cfg.PlainHTTP {
-		scheme = "http"
-	}
-
-	httpClient := httpx.NewClient(httpx.Options{
-		Timeout:       cfg.Timeout,
-		TLSSkipVerify: cfg.TLSSkipVerify,
-		UserAgent:     cfg.UserAgent,
-	})
-
-	// Provider type controls anchor rendering and publisher selection.
-	providerType, err := resolveProviderType(ctx, cfg, tgt, scheme, httpClient, reporter)
-	if err != nil {
-		return err
-	}
-
 	for i, p := range parts {
 		content, aerr := document.FinalizeAnchors([]byte(p.Content), providerType, tgt)
 		if aerr != nil {
@@ -117,32 +150,6 @@ func Run(ctx context.Context, cfg Config, stdout, stderr io.Writer) error {
 		}
 
 		return writeResult(cfg, stdout, doc.Content, sourcePaths(sources))
-	}
-
-	// Only publishing needs registry credentials.
-	explicit := auth.Explicit{Username: cfg.Username, Password: cfg.Password, Token: cfg.Token}
-
-	pub, err := newPublisher(httpClient, providerType, scheme, explicit, tgt)
-	if err != nil {
-		if cfg.Optional {
-			reporter.Infof("optional: %v", err)
-			return nil
-		}
-
-		return err
-	}
-
-	if !cfg.SkipTagCheck {
-		if lister, ok := pub.(provider.TagLister); ok {
-			skip, gerr := tagOrderGate(ctx, cfg, lister, tgt, reporter)
-			if gerr != nil {
-				return gerr
-			}
-
-			if skip {
-				return nil
-			}
-		}
 	}
 
 	// Payload cutting is enforced only for size failures from the provider.
