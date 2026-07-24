@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"testing"
 
 	"github.com/woozymasta/regdoc/internal/provider"
@@ -55,6 +56,70 @@ func TestPublishSuccessNestedRepository(t *testing.T) {
 
 	if body["description"] != "# Readme\n" {
 		t.Fatalf("unexpected body: %+v", body)
+	}
+}
+
+func TestListTagsFlattensArtifactTags(t *testing.T) {
+	var gotUser, gotPass, gotPath string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUser, gotPass, _ = r.BasicAuth()
+		gotPath = r.URL.EscapedPath()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[
+			{"tags":[{"name":"1.0.0"},{"name":"stable"}]},
+			{"tags":[{"name":"1.1.0"}]},
+			{"tags":[]}
+		]`))
+	}))
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+	c := New(srv.Client(), "http", "harbor-user", "harbor-pass")
+
+	tags, err := c.ListTags(context.Background(), target.Target{Registry: u.Host, Repository: "project/team/image"})
+	if err != nil {
+		t.Fatalf("ListTags: %v", err)
+	}
+
+	if gotPath != "/api/v2.0/projects/project/repositories/team%2Fimage/artifacts" {
+		t.Fatalf("path = %q", gotPath)
+	}
+
+	if gotUser != "harbor-user" || gotPass != "harbor-pass" {
+		t.Fatalf("basic auth = %q/%q", gotUser, gotPass)
+	}
+
+	want := []string{"1.0.0", "stable", "1.1.0"}
+	if !slices.Equal(tags, want) {
+		t.Fatalf("ListTags = %v, want %v", tags, want)
+	}
+}
+
+func TestListTagsStatusError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+	c := New(srv.Client(), "http", "harbor-user", "harbor-pass")
+
+	_, err := c.ListTags(context.Background(), target.Target{Registry: u.Host, Repository: "project/image"})
+	if !errors.Is(err, provider.ErrNotFound) {
+		t.Fatalf("err = %v, want wrapping ErrNotFound", err)
+	}
+}
+
+func TestListTagsInvalidRepository(t *testing.T) {
+	c := New(http.DefaultClient, "http", "u", "p")
+
+	_, err := c.ListTags(
+		context.Background(),
+		target.Target{Registry: "harbor.example.com", Repository: "no-project-segment"},
+	)
+	if err == nil {
+		t.Fatal("expected error for repository without a project segment")
 	}
 }
 

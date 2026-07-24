@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"testing"
 
 	"github.com/woozymasta/regdoc/internal/provider"
@@ -52,6 +53,54 @@ func TestPublishSuccess(t *testing.T) {
 
 	if body["description"] != "# Readme\n" {
 		t.Fatalf("unexpected body: %+v", body)
+	}
+}
+
+func TestListTagsPaginates(t *testing.T) {
+	var gotAuth string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.URL.Query().Get("page") == "1" {
+			_, _ = w.Write([]byte(`{"tags":[{"name":"1.0.0"},{"name":"1.1.0"}],"page":1,"has_additional":true}`))
+		} else {
+			_, _ = w.Write([]byte(`{"tags":[{"name":"2.0.0"}],"page":2,"has_additional":false}`))
+		}
+	}))
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+	c := New(srv.Client(), "http", "quay-token")
+
+	tags, err := c.ListTags(context.Background(), target.Target{Registry: u.Host, Repository: "group/image"})
+	if err != nil {
+		t.Fatalf("ListTags: %v", err)
+	}
+
+	if gotAuth != "Bearer quay-token" {
+		t.Fatalf("Authorization = %q", gotAuth)
+	}
+
+	want := []string{"1.0.0", "1.1.0", "2.0.0"}
+	if !slices.Equal(tags, want) {
+		t.Fatalf("ListTags = %v, want %v", tags, want)
+	}
+}
+
+func TestListTagsStatusError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+	c := New(srv.Client(), "http", "quay-token")
+
+	_, err := c.ListTags(context.Background(), target.Target{Registry: u.Host, Repository: "group/image"})
+	if !errors.Is(err, provider.ErrNotFound) {
+		t.Fatalf("err = %v, want wrapping ErrNotFound", err)
 	}
 }
 

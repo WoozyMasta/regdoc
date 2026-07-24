@@ -10,14 +10,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/woozymasta/regdoc/internal/httpx"
 	"github.com/woozymasta/regdoc/internal/provider"
 	"github.com/woozymasta/regdoc/internal/target"
 )
+
+// tagListPageSize is the number of artifacts requested per Harbor API page.
+const tagListPageSize = 100
 
 // Client publishes repository descriptions to the Harbor API.
 type Client struct {
@@ -66,6 +71,71 @@ func (c *Client) Publish(ctx context.Context, tgt target.Target, doc provider.Do
 	}
 
 	return nil
+}
+
+// ListTags returns every tag currently published for tgt's repository,
+// flattened across all artifacts (an artifact/digest can carry multiple tags),
+// using the same Basic authentication Publish already uses.
+func (c *Client) ListTags(ctx context.Context, tgt target.Target) ([]string, error) {
+	project, repository, err := splitRepository(tgt.Repository)
+	if err != nil {
+		return nil, err
+	}
+
+	var tags []string
+
+	for page := 1; ; page++ {
+		query := url.Values{}
+		query.Set("with_tag", "true")
+		query.Set("page", strconv.Itoa(page))
+		query.Set("page_size", strconv.Itoa(tagListPageSize))
+
+		reqURL := c.Scheme + "://" + tgt.Registry + "/api/v2.0/projects/" +
+			url.PathEscape(project) + "/repositories/" + url.PathEscape(repository) +
+			"/artifacts?" + query.Encode()
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("build harbor tags request: %w", err)
+		}
+
+		req.SetBasicAuth(c.Username, c.Password)
+
+		resp, err := c.HTTP.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("harbor: list tags: %w", err)
+		}
+
+		if !httpx.IsSuccess(resp.StatusCode) {
+			httpErr := httpx.NewHTTPError(provider.Harbor, resp)
+			_ = resp.Body.Close()
+
+			return nil, httpErr
+		}
+
+		var artifacts []struct {
+			Tags []struct {
+				Name string `json:"name"`
+			} `json:"tags"`
+		}
+
+		decodeErr := json.NewDecoder(io.LimitReader(resp.Body, httpx.ErrorBodyLimit)).Decode(&artifacts)
+		_ = resp.Body.Close()
+
+		if decodeErr != nil {
+			return nil, fmt.Errorf("harbor: decode artifacts response: %w", decodeErr)
+		}
+
+		for _, artifact := range artifacts {
+			for _, t := range artifact.Tags {
+				tags = append(tags, t.Name)
+			}
+		}
+
+		if len(artifacts) < tagListPageSize {
+			return tags, nil
+		}
+	}
 }
 
 // splitRepository separates the Harbor project from its repository path.

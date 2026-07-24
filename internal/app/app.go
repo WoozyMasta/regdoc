@@ -132,6 +132,19 @@ func Run(ctx context.Context, cfg Config, stdout, stderr io.Writer) error {
 		return err
 	}
 
+	if !cfg.SkipTagCheck {
+		if lister, ok := pub.(provider.TagLister); ok {
+			skip, gerr := tagOrderGate(ctx, cfg, lister, tgt, reporter)
+			if gerr != nil {
+				return gerr
+			}
+
+			if skip {
+				return nil
+			}
+		}
+	}
+
 	// Payload cutting is enforced only for size failures from the provider.
 	if err := publish(
 		ctx, pub, tgt, header, parts,

@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning][].
 
 * Automatic source link/image URL discovery for Woodpecker CI via
   `CI_FORGE_TYPE`, `CI_REPO_URL`, and `CI_COMMIT_SHA`.
+* A tag-order gate: publishing `IMAGE` with an explicit tag
+  (e.g. `quay.io/example/service:3.1.1`) now compares it against
+  the highest already-published stable tag in the repository
+  and skips the publish, as a no-op, when the incoming tag is older -
+  preventing an out-of-order CI build on an older release line
+  from clobbering a newer repository description.
+  `--skip-tag-check` bypasses it.
 
 ### Changed
 

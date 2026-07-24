@@ -24,6 +24,10 @@ github.com/teekennedy/goldmark-markdown v0.5.1 h1:2lIlJ3AcIwaD1wFl4dflJSJFMhRTKE
 github.com/teekennedy/goldmark-markdown v0.5.1/go.mod h1:so260mNSPELuRyynZY18719dRYlD+OSnAovqsyrOMOM=
 github.com/woozymasta/flags v0.11.1 h1:yBE6niNG6dMBGbwhtxr1MHP/+Pjv9AP1cLVuXbTApXE=
 github.com/woozymasta/flags v0.11.1/go.mod h1:ammwzjgsSDK6g2nJ8JrxxT7zrKOjblzHdeted9DoEC0=
+github.com/woozymasta/rats v0.3.1 h1:REy5CUdbd2xZ5K7kqrf8vIQ3juKOvqwzc3ayS6fC6oQ=
+github.com/woozymasta/rats v0.3.1/go.mod h1:ssRQlclzSfZtp81PCOQsUwi2+cwuD25l1N94t5x7dsA=
+github.com/woozymasta/semver v0.2.2 h1:ZLwtuE+igGXlc1h0Ue2S4QUpfGSkXUhoJhifT9u886g=
+github.com/woozymasta/semver v0.2.2/go.mod h1:GlMfscYgUhq8YlGzdmsweN3bm2xghVEv2MNxHHKKMVs=
 github.com/yuin/goldmark v1.7.17 h1:p36OVWwRb246iHxA/U4p8OPEpOTESm4n+g+8t0EE5uA=
 github.com/yuin/goldmark v1.7.17/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
 go.abhg.dev/goldmark/toc v0.11.0 h1:IRixVy3/yVPKvFBc37EeBPi8XLTXrtH6BYaonSjkF8o=

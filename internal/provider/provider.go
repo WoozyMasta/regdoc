@@ -36,6 +36,13 @@ type Publisher interface {
 	Publish(ctx context.Context, tgt target.Target, doc Document) error
 }
 
+// TagLister lists tags already published in tgt's repository.
+// Publisher implementations may optionally support it;
+// callers type-assert rather than requiring it universally.
+type TagLister interface {
+	ListTags(ctx context.Context, tgt target.Target) ([]string, error)
+}
+
 // String returns the provider type as displayed to the user
 // (CLI value, error messages, debug output).
 func (t Type) String() string {

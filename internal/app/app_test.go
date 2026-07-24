@@ -81,6 +81,138 @@ func TestRunEndToEndPublishesHTMLToQuay(t *testing.T) {
 	}
 }
 
+// tagGateServer builds a mock Quay server dispatching tag-listing
+// and description-publish requests, tracking whether publish was invoked.
+func tagGateServer(t *testing.T, existingTags []string) (srv *httptest.Server, published *bool) {
+	t.Helper()
+
+	published = new(bool)
+
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/tag/"):
+			w.Header().Set("Content-Type", "application/json")
+
+			names := make([]string, len(existingTags))
+			for i, tag := range existingTags {
+				names[i] = `{"name":"` + tag + `"}`
+			}
+
+			_, _ = w.Write([]byte(`{"tags":[` + strings.Join(names, ",") + `],"page":1,"has_additional":false}`))
+		default:
+			*published = true
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+
+	return srv, published
+}
+
+func TestRunSkipsPublishForOlderExplicitTag(t *testing.T) {
+	srv, published := tagGateServer(t, []string{"1.0.0", "2.0.0"})
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+
+	dir := t.TempDir()
+	writeFile(t, dir, "README.md", "# Hello\n")
+
+	cfg := testConfig(dir)
+	cfg.Provider = "quay"
+	cfg.PlainHTTP = true
+	cfg.Token = "quay-token"
+	cfg.Positional.Image = u.Host + "/group/image:1.5.0"
+
+	var stdout, stderr bytes.Buffer
+
+	if err := Run(context.Background(), cfg, &stdout, &stderr); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	if *published {
+		t.Fatal("expected publish to be skipped for a tag older than the existing latest")
+	}
+}
+
+func TestRunPublishesForNewerExplicitTag(t *testing.T) {
+	srv, published := tagGateServer(t, []string{"1.0.0", "2.0.0"})
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+
+	dir := t.TempDir()
+	writeFile(t, dir, "README.md", "# Hello\n")
+
+	cfg := testConfig(dir)
+	cfg.Provider = "quay"
+	cfg.PlainHTTP = true
+	cfg.Token = "quay-token"
+	cfg.Positional.Image = u.Host + "/group/image:2.1.0"
+
+	var stdout, stderr bytes.Buffer
+
+	if err := Run(context.Background(), cfg, &stdout, &stderr); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	if !*published {
+		t.Fatal("expected publish for a tag newer than the existing latest")
+	}
+}
+
+func TestRunNoExplicitTagAlwaysPublishes(t *testing.T) {
+	srv, published := tagGateServer(t, []string{"99.0.0"})
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+
+	dir := t.TempDir()
+	writeFile(t, dir, "README.md", "# Hello\n")
+
+	cfg := testConfig(dir)
+	cfg.Provider = "quay"
+	cfg.PlainHTTP = true
+	cfg.Token = "quay-token"
+	cfg.Positional.Image = u.Host + "/group/image"
+
+	var stdout, stderr bytes.Buffer
+
+	if err := Run(context.Background(), cfg, &stdout, &stderr); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	if !*published {
+		t.Fatal("expected publish when IMAGE carries no explicit tag, regardless of existing tags")
+	}
+}
+
+func TestRunSkipTagCheckBypassesGate(t *testing.T) {
+	srv, published := tagGateServer(t, []string{"9.0.0"})
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+
+	dir := t.TempDir()
+	writeFile(t, dir, "README.md", "# Hello\n")
+
+	cfg := testConfig(dir)
+	cfg.Provider = "quay"
+	cfg.PlainHTTP = true
+	cfg.Token = "quay-token"
+	cfg.SkipTagCheck = true
+	cfg.Positional.Image = u.Host + "/group/image:1.0.0"
+
+	var stdout, stderr bytes.Buffer
+
+	if err := Run(context.Background(), cfg, &stdout, &stderr); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	if !*published {
+		t.Fatal("expected --skip-tag-check to bypass the gate and publish an older tag anyway")
+	}
+}
+
 func TestRunOutputDashWritesStdoutNoNetwork(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "README.md", "# Hello\n")

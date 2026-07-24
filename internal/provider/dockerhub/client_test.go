@@ -10,6 +10,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"github.com/woozymasta/regdoc/internal/provider"
@@ -99,6 +100,70 @@ func TestPublishStatusErrors(t *testing.T) {
 		}
 
 		srv.Close()
+	}
+}
+
+func TestListTagsPaginates(t *testing.T) {
+	var gotAuth string
+
+	var srv *httptest.Server
+
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/v2/users/login/":
+			_, _ = w.Write([]byte(`{"token":"jwt-token"}`))
+		case "/v2/repositories/user/image/tags/":
+			gotAuth = r.Header.Get("Authorization")
+			if r.URL.RawQuery == "page_size=100" {
+				_, _ = w.Write([]byte(`{"results":[{"name":"1.0.0"},{"name":"1.1.0"}],"next":"` + srv.URL + `/v2/repositories/user/image/tags/?page=2"}`))
+			} else {
+				_, _ = w.Write([]byte(`{"results":[{"name":"2.0.0"}],"next":null}`))
+			}
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	c := New(srv.Client(), "user", "token")
+	c.BaseURL = srv.URL
+
+	tags, err := c.ListTags(context.Background(), target.Target{Repository: "user/image"})
+	if err != nil {
+		t.Fatalf("ListTags: %v", err)
+	}
+
+	if gotAuth != "JWT jwt-token" {
+		t.Fatalf("Authorization = %q", gotAuth)
+	}
+
+	want := []string{"1.0.0", "1.1.0", "2.0.0"}
+	if !slices.Equal(tags, want) {
+		t.Fatalf("ListTags = %v, want %v", tags, want)
+	}
+}
+
+func TestListTagsStatusError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/users/login/" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"token":"jwt-token"}`))
+
+			return
+		}
+
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	c := New(srv.Client(), "user", "token")
+	c.BaseURL = srv.URL
+
+	_, err := c.ListTags(context.Background(), target.Target{Repository: "user/image"})
+	if !errors.Is(err, provider.ErrNotFound) {
+		t.Fatalf("err = %v, want wrapping ErrNotFound", err)
 	}
 }
 

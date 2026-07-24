@@ -48,9 +48,9 @@ regdoc collects repository Markdown and publishes it as the description of a Doc
 |`--license`|License file to identify in the header (default: auto-discover LICENSE in --root)|`$REGDOC_LICENSE`|no|
 |`--author`|Author shown in the generated header|`$REGDOC_AUTHOR`|no|
 |`--copyright`|Copyright notice shown in the generated header|`$REGDOC_COPYRIGHT`|no|
-|`--keep-comments`|Keep HTML comments instead of stripping them from the published Markdown|`$REGDOC_KEEP_COMMENTS`|no|
 |`--link-base-url`|Base URL prepended to relative Markdown link destinations; overrides CI URL discovery (requires --image-base-url)|`$REGDOC_LINK_BASE_URL`|no|
 |`--image-base-url`|Base URL prepended to relative Markdown image destinations; overrides CI URL discovery (requires --link-base-url)|`$REGDOC_IMAGE_BASE_URL`|no|
+|`--keep-comments`|Keep HTML comments instead of stripping them from the published Markdown|`$REGDOC_KEEP_COMMENTS`|no|
 
 ### Target Options
 
@@ -77,6 +77,7 @@ regdoc collects repository Markdown and publishes it as the description of a Doc
 |---|---|---|---|---|
 |`--timeout`|Per-request HTTP timeout|`30s`|`$REGDOC_TIMEOUT`|no|
 |`--optional`|Treat missing documents, credentials or repository as a successful no-op||`$REGDOC_OPTIONAL`|no|
+|`--skip-tag-check`|Publish even if IMAGE's tag is older than the highest already-published stable tag||`$REGDOC_SKIP_TAG_CHECK`|no|
 |`--debug`|Print technical diagnostics to stderr||`$REGDOC_DEBUG`|no|
 |`-q`, `--quiet`|Suppress informational output (errors are still printed)||`$REGDOC_QUIET`|no|
 

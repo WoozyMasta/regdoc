@@ -70,11 +70,12 @@ type AuthenticationOptions struct {
 
 // RuntimeOptions controls request execution and diagnostics.
 type RuntimeOptions struct {
-	UserAgent string        `no-flag:"yes"`
-	Timeout   time.Duration `long:"timeout"  description:"Per-request HTTP timeout" default:"30s"`
-	Optional  bool          `long:"optional" description:"Treat missing documents, credentials or repository as a successful no-op"`
-	Debug     bool          `long:"debug"    description:"Print technical diagnostics to stderr" xor:"verbosity"`
-	Quiet     bool          `long:"quiet"    description:"Suppress informational output (errors are still printed)" xor:"verbosity" short:"q"`
+	UserAgent    string        `no-flag:"yes"`
+	Timeout      time.Duration `long:"timeout"        description:"Per-request HTTP timeout" default:"30s"`
+	Optional     bool          `long:"optional"       description:"Treat missing documents, credentials or repository as a successful no-op"`
+	SkipTagCheck bool          `long:"skip-tag-check" description:"Publish even if IMAGE's tag is older than the highest already-published stable tag"`
+	Debug        bool          `long:"debug"          description:"Print technical diagnostics to stderr" xor:"verbosity"`
+	Quiet        bool          `long:"quiet"          description:"Suppress informational output (errors are still printed)" xor:"verbosity" short:"q"`
 }
 
 // Positional contains positional command arguments.

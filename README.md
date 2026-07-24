@@ -62,6 +62,33 @@ Select `--provider` explicitly when the registry hostname is ambiguous.
 Do not pass secrets as command-line arguments.
 Use environment variables, `--password-stdin`, or `--token-stdin`.
 
+## Skipping stale publishes
+
+The registry description is a single field per repository,
+shared across every tag.
+When parallel release lines (e.g. a `3.x` and a `2.x` branch)
+build independently, CI can publish out of version order
+and leave the description showing older docs than what was already there.
+
+Add an explicit tag to `IMAGE` to guard against this:
+
+```sh
+regdoc quay.io/example/service:3.1.1
+```
+
+When `IMAGE` carries an explicit tag,
+`regdoc` lists the tags already published in the repository -
+using the same credentials already resolved for publishing,
+no extra permissions needed - finds the highest existing stable release,
+and skips publishing (a no-op, not an error) if tag being published is older.
+Equal versions still publish, so re-running the same tag's CI job is safe.
+A tag that isn't a valid stable SemVer release
+(`:latest`, `:nightly`, `:sha-abcdef`, prereleases)
+is treated the same as no tag at all: publish unconditionally.
+Without an explicit tag, behavior is unchanged from today.
+
+`--skip-tag-check` bypasses the gate and publishes regardless of tag order.
+
 ## Typical CI invocation
 
 This example selects the provider explicitly, supplies project metadata,

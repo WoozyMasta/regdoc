@@ -7,6 +7,8 @@ require (
 	github.com/google/licensecheck v0.3.1
 	github.com/teekennedy/goldmark-markdown v0.5.1
 	github.com/woozymasta/flags v0.11.1
+	github.com/woozymasta/rats v0.3.1
+	github.com/woozymasta/semver v0.2.2
 	github.com/yuin/goldmark v1.7.17 // dependi: disable-check
 )
 

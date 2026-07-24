@@ -87,6 +87,55 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestExplicitTag(t *testing.T) {
+	cases := []struct {
+		name    string
+		raw     string
+		wantTag string
+		wantOK  bool
+	}{
+		{
+			name: "bare repository, no tag",
+			raw:  "registry.example.com/org/image",
+		},
+		{
+			name:    "explicit tag",
+			raw:     "registry.example.com/org/image:3.1.1",
+			wantTag: "3.1.1",
+			wantOK:  true,
+		},
+		{
+			name:    "explicit latest still counts as explicit",
+			raw:     "registry.example.com/org/image:latest",
+			wantTag: "latest",
+			wantOK:  true,
+		},
+		{
+			name: "digest reference has no tag",
+			raw:  "quay.io/group/image@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		},
+		{
+			name: "registry with port, no tag",
+			raw:  "registry.example.com:5000/org/image",
+		},
+		{
+			name:    "registry with port and tag",
+			raw:     "registry.example.com:5000/org/image:3.1.1",
+			wantTag: "3.1.1",
+			wantOK:  true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotTag, gotOK := ExplicitTag(tc.raw)
+			if gotTag != tc.wantTag || gotOK != tc.wantOK {
+				t.Errorf("ExplicitTag(%q) = (%q, %v), want (%q, %v)", tc.raw, gotTag, gotOK, tc.wantTag, tc.wantOK)
+			}
+		})
+	}
+}
+
 func TestHostname(t *testing.T) {
 	cases := []struct {
 		registry string
