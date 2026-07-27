@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
-## Unreleased
+## [0.2.0][] - 2026-07-27
 
 ### Added
 
@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning][].
   since links and images need different routes on every forge.
 * CI-discovered link and image URLs are now pinned
   to a commit SHA instead of a branch.
+
+[0.2.0]: https://github.com/WoozyMasta/rats/compare/v0.1.0...v0.2.0.
 
 ## [0.1.0][] - 2026-07-23
 
