@@ -213,6 +213,34 @@ func TestRunSkipTagCheckBypassesGate(t *testing.T) {
 	}
 }
 
+func TestRunVersionFormatCalVerSkipsOlderTag(t *testing.T) {
+	srv, published := tagGateServer(t, []string{"2026-06-01", "2026-01-15"})
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+
+	dir := t.TempDir()
+	writeFile(t, dir, "README.md", "# Hello\n")
+
+	cfg := testConfig(dir)
+	cfg.Provider = "quay"
+	cfg.PlainHTTP = true
+	cfg.Token = "quay-token"
+	cfg.VersionFormat = "calver"
+	cfg.CalVerFormat = "ymd-dash"
+	cfg.Positional.Image = u.Host + "/group/image:2026-01-01"
+
+	var stdout, stderr bytes.Buffer
+
+	if err := Run(context.Background(), cfg, &stdout, &stderr); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	if *published {
+		t.Fatal("expected publish to be skipped for a CalVer date older than the existing latest")
+	}
+}
+
 func TestRunSkipsMarkdownProcessingForOlderExplicitTag(t *testing.T) {
 	srv, published := tagGateServer(t, []string{"1.0.0", "2.0.0"})
 	defer srv.Close()

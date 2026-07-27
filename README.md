@@ -89,6 +89,19 @@ Without an explicit tag, behavior is unchanged from today.
 
 `--skip-tag-check` bypasses the gate and publishes regardless of tag order.
 
+`--version-format` selects how tags are compared:
+`semver` (the default, shown above),
+`calver`, `numeric`, `lexical`, `pep440`, `debian`, or `rpm`.
+`--calver-format` picks the calendar layout when `--version-format=calver`:
+
+```sh
+regdoc --version-format=calver --calver-format=ym-dot \
+  quay.io/example/service:2026.07
+```
+
+A tag that does not match the configured format
+is treated the same as no tag at all: publish unconditionally.
+
 ## Release version in the header
 
 The generated header shows a `Release` line, when a version is known.

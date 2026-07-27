@@ -18,30 +18,21 @@ and this project adheres to [Semantic Versioning][].
 
 ### Added
 
-* Automatic source link/image URL discovery for Woodpecker CI via
-  `CI_FORGE_TYPE`, `CI_REPO_URL`, and `CI_COMMIT_SHA`.
-* A tag-order gate: publishing `IMAGE` with an explicit tag
-  (e.g. `quay.io/example/service:3.1.1`) now compares it against
-  the highest already-published stable tag in the repository
-  and skips the publish, as a no-op, when the incoming tag is older -
-  preventing an out-of-order CI build on an older release line
-  from clobbering a newer repository description.
-  `--skip-tag-check` bypasses it.
-* A `Release` line in the generated header.
-  `--release-version` sets it explicitly;
-  otherwise it falls back to `IMAGE`'s explicit tag.
-  Linked to that version's tag page in the source forge
-  when the forge and project URL are known.
+* Skip publishing when `IMAGE` tag
+  is older than the highest already-published tag,
+  `--skip-tag-check` to bypass gate,
+  `--version-format`/`--calver-format` to pick the comparison format.
+* `--release-version` show a `Release` line in the generated header,
+  linked to that version's tag page when the source forge is known.
+  Defaults to `IMAGE`'s explicit tag.
+* Automatic source link/image URL discovery for Woodpecker CI.
 
 ### Changed
 
-* Replace `--base-url`/`-b`/`REGDOC_BASE_URL` with `--link-base-url`
-  and `--image-base-url` (`REGDOC_LINK_BASE_URL`/`REGDOC_IMAGE_BASE_URL`),
-  an all-or-nothing manual override: a single base URL cannot correctly
-  describe both Markdown links and images on any supported forge.
-* CI-discovered link and image URLs are now always pinned to a full commit SHA
-  instead of a branch name, across GitLab CI, GitHub Actions, Gitea Actions,
-  Forgejo Actions, Bitbucket Pipelines, and Woodpecker CI.
+* Replace `--base-url` with `--link-base-url`/`--image-base-url`,
+  since links and images need different routes on every forge.
+* CI-discovered link and image URLs are now pinned
+  to a commit SHA instead of a branch.
 
 ## [0.1.0][] - 2026-07-23
 

@@ -71,12 +71,14 @@ type AuthenticationOptions struct {
 
 // RuntimeOptions controls request execution and diagnostics.
 type RuntimeOptions struct {
-	UserAgent    string        `no-flag:"yes"`
-	Timeout      time.Duration `long:"timeout"        description:"Per-request HTTP timeout" default:"30s"`
-	Optional     bool          `long:"optional"       description:"Treat missing documents, credentials or repository as a successful no-op"`
-	SkipTagCheck bool          `long:"skip-tag-check" description:"Publish even if IMAGE's tag is older than the highest already-published stable tag"`
-	Debug        bool          `long:"debug"          description:"Print technical diagnostics to stderr" xor:"verbosity"`
-	Quiet        bool          `long:"quiet"          description:"Suppress informational output (errors are still printed)" xor:"verbosity" short:"q"`
+	UserAgent     string        `no-flag:"yes"`
+	VersionFormat string        `long:"version-format" description:"Version format used to compare IMAGE's tag against existing tags" default:"semver" choices:"semver;calver;numeric;lexical;pep440;debian;rpm"`
+	CalVerFormat  string        `long:"calver-format"  description:"Built-in CalVer layout used when --version-format=calver" default:"ymd-dash" choices:"ymd-dash;ymd-dot;ym-dot;ym-short"`
+	Timeout       time.Duration `long:"timeout"        description:"Per-request HTTP timeout" default:"30s"`
+	Optional      bool          `long:"optional"       description:"Treat missing documents, credentials or repository as a successful no-op"`
+	SkipTagCheck  bool          `long:"skip-tag-check" description:"Publish even if IMAGE's tag is older than the highest already-published stable tag"`
+	Debug         bool          `long:"debug"          description:"Print technical diagnostics to stderr" xor:"verbosity"`
+	Quiet         bool          `long:"quiet"          description:"Suppress informational output (errors are still printed)" xor:"verbosity" short:"q"`
 }
 
 // Positional contains positional command arguments.
@@ -86,13 +88,19 @@ type Positional struct {
 }
 
 // ConfigError maps a configuration failure to exit code 2.
-type ConfigError struct{ Err error }
+type ConfigError struct {
+	Err error
+}
 
 // Error implements error.
-func (e *ConfigError) Error() string { return e.Err.Error() }
+func (e *ConfigError) Error() string {
+	return e.Err.Error()
+}
 
 // Unwrap implements error unwrapping.
-func (e *ConfigError) Unwrap() error { return e.Err }
+func (e *ConfigError) Unwrap() error {
+	return e.Err
+}
 
 // ResolveSecrets reads one selected stdin credential.
 func (c *Config) ResolveSecrets(stdin io.Reader) error {

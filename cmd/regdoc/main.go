@@ -45,7 +45,6 @@ func run() int {
 		flags.CompletionCommand |
 		flags.DocsCommand |
 		flags.VersionFlag |
-		flags.IgnoreUnknown |
 		flags.StrictPositionalArgs |
 		flags.ShowRepeatableInHelp |
 		flags.EnvProvisioning)

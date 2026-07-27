@@ -76,6 +76,8 @@ regdoc collects repository Markdown and publishes it as the description of a Doc
 
 |Option|Description|Default|Environment|Required|
 |---|---|---|---|---|
+|`--version-format`|Version format used to compare IMAGE's tag against existing tags; choices: `semver, calver, numeric, lexical, pep440, debian, rpm`|`semver`|`$REGDOC_VERSION_FORMAT`|no|
+|`--calver-format`|Built-in CalVer layout used when --version-format=calver; choices: `ymd-dash, ymd-dot, ym-dot, ym-short`|`ymd-dash`|`$REGDOC_CALVER_FORMAT`|no|
 |`--timeout`|Per-request HTTP timeout|`30s`|`$REGDOC_TIMEOUT`|no|
 |`--optional`|Treat missing documents, credentials or repository as a successful no-op||`$REGDOC_OPTIONAL`|no|
 |`--skip-tag-check`|Publish even if IMAGE's tag is older than the highest already-published stable tag||`$REGDOC_SKIP_TAG_CHECK`|no|

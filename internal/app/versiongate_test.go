@@ -154,3 +154,76 @@ func TestTagOrderGateListTagsFailureIsError(t *testing.T) {
 		t.Fatal("expected error when listing existing tags fails")
 	}
 }
+
+func TestTagOrderGateCalVerSkipsOlderTag(t *testing.T) {
+	cfg := testGateConfig("registry.example/group/image:2026-01-01")
+	cfg.VersionFormat = "calver"
+	cfg.CalVerFormat = "ymd-dash"
+	lister := stubTagLister{tags: []string{"2026-06-01", "2026-01-15"}}
+
+	skip, err := tagOrderGate(context.Background(), cfg, lister, target.Target{}, NewReporter(&bytes.Buffer{}, false, false))
+	if err != nil {
+		t.Fatalf("tagOrderGate: %v", err)
+	}
+
+	if !skip {
+		t.Fatal("expected skip=true for a CalVer date older than the existing latest")
+	}
+}
+
+func TestTagOrderGateCalVerPublishesNewerTag(t *testing.T) {
+	cfg := testGateConfig("registry.example/group/image:2026-08-01")
+	cfg.VersionFormat = "calver"
+	cfg.CalVerFormat = "ymd-dash"
+	lister := stubTagLister{tags: []string{"2026-06-01", "2026-01-15"}}
+
+	skip, err := tagOrderGate(context.Background(), cfg, lister, target.Target{}, NewReporter(&bytes.Buffer{}, false, false))
+	if err != nil {
+		t.Fatalf("tagOrderGate: %v", err)
+	}
+
+	if skip {
+		t.Fatal("expected skip=false for a CalVer date newer than the existing latest")
+	}
+}
+
+func TestTagOrderGateCalVerIgnoresSemverLookingExistingTags(t *testing.T) {
+	// Tags that don't match the configured --calver-format layout are simply not comparable,
+	// the same way a non-SemVer tag is ignored under the default format.
+	cfg := testGateConfig("registry.example/group/image:2026-01-01")
+	cfg.VersionFormat = "calver"
+	cfg.CalVerFormat = "ymd-dash"
+	lister := stubTagLister{tags: []string{"1.0.0", "2.0.0", "latest"}}
+
+	skip, err := tagOrderGate(context.Background(), cfg, lister, target.Target{}, NewReporter(&bytes.Buffer{}, false, false))
+	if err != nil {
+		t.Fatalf("tagOrderGate: %v", err)
+	}
+
+	if skip {
+		t.Fatal("expected skip=false when no existing tag matches the CalVer layout")
+	}
+}
+
+func TestTagOrderGateInvalidCalVerFormatIsError(t *testing.T) {
+	cfg := testGateConfig("registry.example/group/image:2026-01-01")
+	cfg.VersionFormat = "calver"
+	cfg.CalVerFormat = "bogus"
+	lister := stubTagLister{tags: []string{"2026-01-01"}}
+
+	_, err := tagOrderGate(context.Background(), cfg, lister, target.Target{}, NewReporter(&bytes.Buffer{}, false, false))
+	if err == nil {
+		t.Fatal("expected error for an unrecognized --calver-format value")
+	}
+}
+
+func TestTagOrderGateUnknownVersionFormatIsError(t *testing.T) {
+	cfg := testGateConfig("registry.example/group/image:1.0.0")
+	cfg.VersionFormat = "not-a-real-format"
+	lister := stubTagLister{tags: []string{"1.0.0"}}
+
+	_, err := tagOrderGate(context.Background(), cfg, lister, target.Target{}, NewReporter(&bytes.Buffer{}, false, false))
+	if err == nil {
+		t.Fatal("expected error for an unknown --version-format value")
+	}
+}
