@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning][].
 * CI-discovered link and image URLs are now pinned
   to a commit SHA instead of a branch.
 
-[0.2.0]: https://github.com/WoozyMasta/rats/compare/v0.1.0...v0.2.0.
+[0.2.0]: https://github.com/WoozyMasta/regdoc/compare/v0.1.0...v0.2.0.
 
 ## [0.1.0][] - 2026-07-23
 
