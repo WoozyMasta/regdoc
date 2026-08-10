@@ -8,11 +8,11 @@ import (
 	"bytes"
 	"fmt"
 
-	markdown "github.com/teekennedy/goldmark-markdown"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
 
+	"github.com/woozymasta/regdoc/internal/markdown"
 	"github.com/woozymasta/regdoc/internal/provider"
 	"github.com/woozymasta/regdoc/internal/target"
 )

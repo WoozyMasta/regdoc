@@ -280,6 +280,45 @@ func TestRewriteKeepComments(t *testing.T) {
 		t.Fatalf("expected comment preserved when StripComments is false, got %q", out)
 	}
 }
+
+func TestRewriteComplexDocumentRegression(t *testing.T) {
+	src := strings.Join([]string{
+		"# Title",
+		"",
+		"> quoted paragraph",
+		">",
+		"> second paragraph with [doc][ref]",
+		"",
+		"* item one",
+		"* item two with ![Logo](./images/logo.png)",
+		"",
+		"```md",
+		"[keep](./code.md)",
+		"```",
+		"",
+		"[ref]: ./docs/guide.md",
+		"",
+	}, "\n")
+
+	out := rewriteWithBase(t, "README.md", src)
+
+	for _, want := range []string{
+		"# Title",
+		"> quoted paragraph",
+		">",
+		"> second paragraph with [doc](https://git.example/project/-/raw/main/docs/guide.md)",
+		"* item one",
+		"* item two with ![Logo](https://git.example/project/-/raw/main/images/logo.png)",
+		"```md",
+		"[keep](./code.md)",
+		"```",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in %q", want, out)
+		}
+	}
+}
+
 func TestRewriteEmbedLocalImage(t *testing.T) {
 	dir := t.TempDir()
 	imagePath := filepath.Join(dir, "images", "logo.png")

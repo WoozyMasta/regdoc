@@ -5,39 +5,41 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
+	"oras.land/oras-go/v2/registry/remote/auth"
+	"oras.land/oras-go/v2/registry/remote/credentials"
 
 	"github.com/woozymasta/regdoc/internal/target"
 )
 
-// keychainCredentials delegates Docker config and credential-helper handling to authn.DefaultKeychain.
-// Do not parse Docker config or invoke helpers here.
+// keychainCredentials delegates Docker config
+// and credential-helper handling to the ORAS credential store.
+// Do not parse Docker config or invoke helpers directly here.
 func keychainCredentials(tgt target.Target) (username, password string, ok bool, err error) {
-	reg, err := name.NewRegistry(tgt.Registry)
+	store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{})
 	if err != nil {
-		return "", "", false, fmt.Errorf("resolve registry %q for keychain lookup: %w", tgt.Registry, err)
+		return "", "", false, fmt.Errorf("open docker credential store: %w", err)
 	}
 
-	authenticator, err := authn.DefaultKeychain.Resolve(reg)
+	serverAddress := credentials.ServerAddressFromRegistry(tgt.Registry)
+	if tgt.Registry == "index.docker.io" {
+		serverAddress = credentials.ServerAddressFromRegistry("docker.io")
+	}
+
+	credential, err := store.Get(context.Background(), serverAddress)
 	if err != nil {
 		return "", "", false, fmt.Errorf("resolve docker keychain for %q: %w", tgt.Registry, err)
 	}
 
-	if authenticator == authn.Anonymous {
+	if credential == auth.EmptyCredential {
 		return "", "", false, nil
 	}
 
-	cfg, err := authenticator.Authorization()
-	if err != nil {
-		return "", "", false, fmt.Errorf("read keychain credentials for %q: %w", tgt.Registry, err)
-	}
-
-	if cfg.Username == "" && cfg.Password == "" {
+	if credential.Username == "" && credential.Password == "" {
 		return "", "", false, nil
 	}
 
-	return cfg.Username, cfg.Password, true, nil
+	return credential.Username, credential.Password, true, nil
 }

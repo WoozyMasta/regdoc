@@ -33,6 +33,24 @@ func TestParse(t *testing.T) {
 			wantRepository: "library/ubuntu",
 		},
 		{
+			name:           "docker hub explicit official image",
+			raw:            "index.docker.io/ubuntu:latest",
+			wantRegistry:   "index.docker.io",
+			wantRepository: "library/ubuntu",
+		},
+		{
+			name:           "docker hub explicit official image via docker.io",
+			raw:            "docker.io/library/ubuntu:latest",
+			wantRegistry:   "index.docker.io",
+			wantRepository: "library/ubuntu",
+		},
+		{
+			name:           "docker hub explicit user namespace via docker.io",
+			raw:            "docker.io/user/image:latest",
+			wantRegistry:   "index.docker.io",
+			wantRepository: "user/image",
+		},
+		{
 			name:           "custom registry with port and tag",
 			raw:            "registry.example.com:5000/project/image:tag",
 			wantRegistry:   "registry.example.com:5000",
@@ -49,6 +67,12 @@ func TestParse(t *testing.T) {
 			raw:            "quay.io/group/image@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			wantRegistry:   "quay.io",
 			wantRepository: "group/image",
+		},
+		{
+			name:           "localhost registry",
+			raw:            "localhost:5000/org/image:tag",
+			wantRegistry:   "localhost:5000",
+			wantRepository: "org/image",
 		},
 		{
 			name:    "invalid reference",
@@ -111,8 +135,18 @@ func TestExplicitTag(t *testing.T) {
 			wantOK:  true,
 		},
 		{
+			name:    "docker hub official image explicit tag",
+			raw:     "ubuntu:24.04",
+			wantTag: "24.04",
+			wantOK:  true,
+		},
+		{
 			name: "digest reference has no tag",
 			raw:  "quay.io/group/image@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		},
+		{
+			name: "tag-looking digest reference still has no tag",
+			raw:  "registry.example.com/org/image:1.2.3@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 		},
 		{
 			name: "registry with port, no tag",
@@ -122,6 +156,12 @@ func TestExplicitTag(t *testing.T) {
 			name:    "registry with port and tag",
 			raw:     "registry.example.com:5000/org/image:3.1.1",
 			wantTag: "3.1.1",
+			wantOK:  true,
+		},
+		{
+			name:    "localhost registry with explicit tag",
+			raw:     "localhost:5000/org/image:dev",
+			wantTag: "dev",
 			wantOK:  true,
 		},
 	}

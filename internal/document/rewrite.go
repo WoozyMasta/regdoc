@@ -17,7 +17,7 @@ import (
 	"regexp"
 	"strings"
 
-	markdown "github.com/teekennedy/goldmark-markdown"
+	"github.com/woozymasta/regdoc/internal/markdown"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"

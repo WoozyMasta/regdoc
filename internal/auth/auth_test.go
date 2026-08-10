@@ -90,6 +90,22 @@ func TestResolveDockerHubKeychainInlineAuth(t *testing.T) {
 	}
 }
 
+func TestResolveDockerHubKeychainDockerIOAlias(t *testing.T) {
+	clearAuthEnv(t)
+	withDockerConfig(t, map[string]string{
+		"https://index.docker.io/v1/": "alias-user:alias-pass",
+	})
+
+	got, err := ResolveDockerHub(Explicit{}, target.Target{Registry: "docker.io"})
+	if err != nil {
+		t.Fatalf("ResolveDockerHub: %v", err)
+	}
+
+	if got.Username != "alias-user" || got.Token != "alias-pass" {
+		t.Fatalf("expected docker.io alias credentials, got %+v", got)
+	}
+}
+
 func TestResolveDockerHubNoCredentials(t *testing.T) {
 	clearAuthEnv(t)
 	withDockerConfig(t, nil)

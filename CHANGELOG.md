@@ -6,13 +6,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog][],
 and this project adheres to [Semantic Versioning][].
 
-<!--
-## Unreleased
+## [0.3.0][] - 2026-08-11
 
-### Added
 ### Changed
+
+* Replace `go-containerregistry` with ORAS for image-reference validation
+  and Docker-compatible host credential lookup.
+* Replace `goldmark-markdown` with a maintained internal CommonMark renderer
+  compatible with Goldmark 1.8.5.
+
 ### Removed
--->
+
+* Remove transitive Docker CLI, credential-helper library,
+  and Logrus dependencies from the binary.
+
+[0.3.0]: https://github.com/WoozyMasta/regdoc/compare/v0.2.0...v0.3.0
 
 ## [0.2.0][] - 2026-07-27
 
@@ -34,7 +42,7 @@ and this project adheres to [Semantic Versioning][].
 * CI-discovered link and image URLs are now pinned
   to a commit SHA instead of a branch.
 
-[0.2.0]: https://github.com/WoozyMasta/regdoc/compare/v0.1.0...v0.2.0.
+[0.2.0]: https://github.com/WoozyMasta/regdoc/compare/v0.1.0...v0.2.0
 
 ## [0.1.0][] - 2026-07-23
 

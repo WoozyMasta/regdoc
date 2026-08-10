@@ -11,7 +11,13 @@ import (
 	"net"
 	"strings"
 
-	"github.com/google/go-containerregistry/pkg/name"
+	"oras.land/oras-go/v2/registry"
+)
+
+const (
+	dockerRegistry = "docker.io"
+	dockerIndex    = "index.docker.io"
+	libraryPrefix  = "library/"
 )
 
 // Target is a normalized container repository reference.
@@ -24,17 +30,15 @@ type Target struct {
 
 // Parse parses raw into a normalized Target, discarding any tag or digest.
 func Parse(raw string) (Target, error) {
-	ref, err := name.ParseReference(raw)
+	ref, err := parseReference(raw)
 	if err != nil {
 		return Target{}, fmt.Errorf("parse image reference %q: %w", raw, err)
 	}
 
-	repo := ref.Context()
-
 	return Target{
 		Original:   raw,
-		Registry:   repo.RegistryStr(),
-		Repository: repo.RepositoryStr(),
+		Registry:   ref.Registry,
+		Repository: ref.Repository,
 	}, nil
 }
 
@@ -43,22 +47,61 @@ func Parse(raw string) (Target, error) {
 // an implied ":latest", or a digest reference -
 // only a tag the user actually typed is a version-gate candidate.
 func ExplicitTag(raw string) (tag string, ok bool) {
-	t, err := name.NewTag(raw, name.WithDefaultTag(""))
-	if err != nil {
-		// Digest references (e.g. "...@sha256:...")
-		// fail NewTag's own tag/repository split before NewRepository even runs;
-		// treat that the same as "no explicit tag" rather than propagating an error.
+	if strings.Contains(raw, "@") {
 		return "", false
 	}
 
-	if t.TagStr() == "" {
+	ref, err := parseReference(raw)
+	if err != nil || ref.Reference == "" {
 		return "", false
 	}
 
-	return t.TagStr(), true
+	return ref.Reference, true
 }
 
-// Hostname returns the registry hostname, lowercased, without port and without a trailing DNS root dot.
+// parseReference applies Docker's familiar-name defaults
+// before validating the fully qualified reference with ORAS.
+func parseReference(raw string) (registry.Reference, error) {
+	qualified := raw
+	first, _, hasSlash := strings.Cut(raw, "/")
+
+	if !hasSlash {
+		qualified = dockerRegistry + "/" + libraryPrefix + raw
+	} else if !isRegistryComponent(first) {
+		qualified = dockerRegistry + "/" + raw
+	}
+
+	ref, err := registry.ParseReference(qualified)
+	if err != nil {
+		return registry.Reference{}, err
+	}
+
+	if isDockerHubRegistry(ref.Registry) {
+		ref.Registry = dockerIndex
+		if !strings.Contains(ref.Repository, "/") {
+			ref.Repository = libraryPrefix + ref.Repository
+		}
+	}
+
+	return ref, nil
+}
+
+// isDockerHubRegistry reports whether registry
+// is a Docker Hub endpoint or familiar-name alias.
+func isDockerHubRegistry(registry string) bool {
+	return registry == dockerRegistry || registry == dockerIndex
+}
+
+// isRegistryComponent reports whether the first path component identifies a
+// registry according to Docker's familiar-reference convention.
+func isRegistryComponent(component string) bool {
+	return component == "localhost" ||
+		strings.ContainsAny(component, ".:") ||
+		strings.HasPrefix(component, "[")
+}
+
+// Hostname returns the registry hostname, lowercased,
+// without port and without a trailing DNS root dot.
 func (t Target) Hostname() string {
 	host := t.Registry
 	if h, _, err := net.SplitHostPort(host); err == nil {
