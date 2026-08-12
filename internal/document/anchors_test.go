@@ -82,3 +82,23 @@ func TestFinalizeAnchorsNonAnchorLinksUntouched(t *testing.T) {
 		t.Fatalf("expected absolute link untouched, got %q", out)
 	}
 }
+
+func TestFinalizeAnchorsPreservesEmbeddedImageReference(t *testing.T) {
+	tgt := target.Target{Registry: "quay.io", Repository: "group/image"}
+	src := "![Logo][regdoc-image-1]\n\n" +
+		"[regdoc-image-1]:data&colon;image/png;base64,iVBORw==\n"
+
+	out, err := FinalizeAnchors([]byte(src), provider.Quay, tgt)
+	if err != nil {
+		t.Fatalf("FinalizeAnchors: %v", err)
+	}
+
+	for _, want := range []string{
+		"![Logo][regdoc-image-1]",
+		"[regdoc-image-1]:data&colon;image/png;base64,iVBORw==",
+	} {
+		if !strings.Contains(string(out), want) {
+			t.Fatalf("expected %q in %q", want, out)
+		}
+	}
+}

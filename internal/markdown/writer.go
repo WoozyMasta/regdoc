@@ -23,12 +23,13 @@ type linePrefix struct {
 
 // markdownWriter writes Markdown while managing prefixes and line flushing.
 type markdownWriter struct {
-	err        error        // err stores the first write error.
-	output     io.Writer    // output is the final writer receiving rendered bytes.
-	prefixes   []linePrefix // prefixes contains active line prefixes.
-	buffer     bytes.Buffer // buffer stores incomplete output until a line is complete.
-	lineBuffer bytes.Buffer // lineBuffer assembles a single output line before writing.
-	line       int          // line is the zero-based output line index.
+	err                        error        // err stores the first write error.
+	output                     io.Writer    // output is the final writer receiving rendered bytes.
+	prefixes                   []linePrefix // prefixes contains active line prefixes.
+	buffer                     bytes.Buffer // buffer stores incomplete output until a line is complete.
+	lineBuffer                 bytes.Buffer // lineBuffer assembles a single output line before writing.
+	line                       int          // line is the zero-based output line index.
+	preserveTrailingWhitespace bool         // preserveTrailingWhitespace protects code block contents.
 }
 
 // newMarkdownWriter creates a Markdown writer around an output writer.
@@ -37,10 +38,9 @@ func newMarkdownWriter(output io.Writer) *markdownWriter {
 }
 
 // writeLine writes bytes and flushes the current line.
-func (w *markdownWriter) writeLine(line []byte) int {
-	n := w.writeBytes(line)
+func (w *markdownWriter) writeLine(line []byte) {
+	w.writeBytes(line)
 	w.flushLine()
-	return n
 }
 
 // flushLine flushes the buffered line when it contains data.
@@ -94,8 +94,15 @@ func (w *markdownWriter) writeBytes(data []byte) int {
 		}
 		w.lineBuffer.Write(line)
 
-		trimmed := bytes.TrimRightFunc(w.lineBuffer.Bytes(), unicode.IsSpace)
-		w.lineBuffer.Truncate(len(trimmed))
+		if w.preserveTrailingWhitespace {
+			w.lineBuffer.Truncate(w.lineBuffer.Len() - 1)
+			if bytes.HasSuffix(w.lineBuffer.Bytes(), []byte{'\r'}) {
+				w.lineBuffer.Truncate(w.lineBuffer.Len() - 1)
+			}
+		} else {
+			trimmed := bytes.TrimRightFunc(w.lineBuffer.Bytes(), unicode.IsSpace)
+			w.lineBuffer.Truncate(len(trimmed))
+		}
 		w.lineBuffer.WriteByte(lineDelimiter)
 
 		if _, err := w.output.Write(w.lineBuffer.Bytes()); err != nil {

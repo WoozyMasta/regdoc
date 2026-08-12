@@ -79,6 +79,31 @@ func TestRendererFormattingRegression(t *testing.T) {
 			want:   "prefix <span>inline</span> suffix\n",
 		},
 		{
+			name:   "indented code remains code",
+			source: "    echo foo\n    echo bar\n",
+			want:   "    echo foo\n    echo bar\n",
+		},
+		{
+			name:   "fence is longer than content delimiter",
+			source: "````markdown\n```text\nfoo\n```\n````\n",
+			want:   "````markdown\n```text\nfoo\n```\n````\n",
+		},
+		{
+			name:   "tilde fence supports backtick in info string",
+			source: "~~~ lang`value\ncontent\n~~~\n",
+			want:   "~~~lang`value\ncontent\n~~~\n",
+		},
+		{
+			name:   "fenced code preserves trailing whitespace",
+			source: "```text\nvalue  \nvalue\t\n```\n",
+			want:   "```text\nvalue  \nvalue\t\n```\n",
+		},
+		{
+			name:   "indented code preserves trailing whitespace",
+			source: "    value  \n    value\t\n",
+			want:   "    value  \n    value\t\n",
+		},
+		{
 			name:   "autolink stays bracketed",
 			source: "<https://example.com>\n",
 			want:   "<https://example.com>\n",

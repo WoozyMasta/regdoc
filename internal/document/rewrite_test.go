@@ -180,12 +180,18 @@ func TestRewriteLinkAndImageBasesAreIndependent(t *testing.T) {
 }
 
 func TestRewriteCodeUntouched(t *testing.T) {
-	src := "```\n[x](./should-not-move.md)\n```\n\n`[y](./also-not.md)`\n"
+	src := "```\n[x](./should-not-move.md)\n" +
+		"![logo](data:image/png;base64,iVBORw==)\n```\n\n" +
+		"`[y](./also-not.md)`\n"
 
 	out := rewriteWithBase(t, "README.md", src)
 
 	if !strings.Contains(out, "./should-not-move.md") || !strings.Contains(out, "./also-not.md") {
 		t.Fatalf("expected code content untouched, got %q", out)
+	}
+	if !strings.Contains(out, "![logo](data:image/png;base64,iVBORw==)") ||
+		strings.Contains(out, "regdoc-image") {
+		t.Fatalf("expected embedded image example untouched, got %q", out)
 	}
 }
 
@@ -247,6 +253,7 @@ func TestRewriteTrailingNewline(t *testing.T) {
 
 func TestRewriteStripComments(t *testing.T) {
 	src := "<!-- markdownlint-disable MD013 -->\n\n" +
+		"<!--\nmarkdownlint-disable MD024\n-->\n\n" +
 		"# Title\n\n" +
 		"Text with an inline <!-- note --> comment.\n\n" +
 		"```html\n<!-- keep me, this is code -->\n```\n"
@@ -263,6 +270,15 @@ func TestRewriteStripComments(t *testing.T) {
 
 	if !strings.Contains(out, "keep me, this is code") {
 		t.Fatalf("expected comment inside fenced code block preserved, got %q", out)
+	}
+}
+
+func TestRewriteStripMultilineCommentCRLF(t *testing.T) {
+	src := "<!--\r\nmarkdownlint-disable MD024\r\n-->\r\n\r\n# Title\r\n"
+	out := rewriteWithBase(t, "CHANGELOG.md", src)
+
+	if strings.Contains(out, "markdownlint-disable") || !strings.Contains(out, "# Title") {
+		t.Fatalf("expected multiline comment stripped from CRLF input, got %q", out)
 	}
 }
 
@@ -329,7 +345,7 @@ func TestRewriteEmbedLocalImage(t *testing.T) {
 		t.Fatalf("write image: %v", err)
 	}
 
-	out, err := Rewrite([]byte("![Logo](images/logo.png)\n"), RewriteConfig{
+	out, err := Rewrite([]byte("![Logo](images/logo.png \"Product logo\")\n"), RewriteConfig{
 		Root:        dir,
 		RelPath:     "README.md",
 		EmbedImages: true,
@@ -344,7 +360,7 @@ func TestRewriteEmbedLocalImage(t *testing.T) {
 
 	for _, want := range []string{
 		"![Logo][regdoc-image-1]",
-		"[regdoc-image-1]:data&colon;image/png;base64,iVBORw==",
+		"[regdoc-image-1]:data&colon;image/png;base64,iVBORw== \"Product logo\"",
 	} {
 		if !strings.Contains(string(out), want) {
 			t.Fatalf("expected %q in %q", want, out)

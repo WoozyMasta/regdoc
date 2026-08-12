@@ -25,10 +25,6 @@ import (
 
 var htmlCommentPattern = regexp.MustCompile(`(?s)^<!--.*-->$`)
 
-var embeddedImagePattern = regexp.MustCompile(
-	`!\[([^\]\r\n]*)\]\((data:image/[^;\s)]+;base64,[A-Za-z0-9+/=]+)\)`,
-)
-
 // RewriteConfig configures per-source Markdown processing:
 // link/image destination rewriting and HTML comment stripping.
 type RewriteConfig struct {
@@ -68,39 +64,7 @@ func Rewrite(content []byte, cfg RewriteConfig) ([]byte, error) {
 		return nil, fmt.Errorf("render markdown: %w", err)
 	}
 
-	return moveEmbeddedImagesToReferences(buf.Bytes()), nil
-}
-
-// moveEmbeddedImagesToReferences avoids inline data URI filtering in registry
-// Markdown renderers that accept data URIs only in reference definitions.
-func moveEmbeddedImagesToReferences(content []byte) []byte {
-	matches := embeddedImagePattern.FindAllSubmatchIndex(content, -1)
-	if len(matches) == 0 {
-		return content
-	}
-
-	labels := make(map[string]string, len(matches))
-	definitions := make([]string, 0, len(matches))
-	result := embeddedImagePattern.ReplaceAllFunc(content, func(match []byte) []byte {
-		submatches := embeddedImagePattern.FindSubmatch(match)
-		altText := submatches[1]
-		dataURI := string(submatches[2])
-		label, ok := labels[dataURI]
-		if !ok {
-			label = fmt.Sprintf("regdoc-image-%d", len(labels)+1)
-			labels[dataURI] = label
-			definitions = append(definitions, "["+label+"]:data&colon;"+strings.TrimPrefix(dataURI, "data:"))
-		}
-
-		return []byte("![" + string(altText) + "][" + label + "]")
-	})
-
-	result = bytes.TrimRight(result, "\n")
-	result = append(result, '\n', '\n')
-	result = append(result, strings.Join(definitions, "\n")...)
-	result = append(result, '\n')
-
-	return result
+	return buf.Bytes(), nil
 }
 
 // stripComments removes standalone HTML comment nodes only.
@@ -145,6 +109,9 @@ func nodeText(n ast.Node, source []byte) []byte {
 		for i := range lines.Len() {
 			seg := lines.At(i)
 			buf.Write(seg.Value(source))
+		}
+		if node.HasClosure() {
+			buf.Write(node.ClosureLine.Value(source))
 		}
 
 	case *ast.RawHTML:

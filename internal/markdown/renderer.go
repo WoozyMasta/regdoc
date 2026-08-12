@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -32,10 +33,12 @@ type Renderer struct {
 
 // renderContext stores state shared across a single render pass.
 type renderContext struct {
-	writer   *markdownWriter // writer emits the rendered Markdown output.
-	source   []byte          // source contains the original document bytes.
-	lists    []listContext   // lists tracks nested list rendering state.
-	codeSpan codeSpanContext // codeSpan stores temporary inline code rendering state.
+	writer              *markdownWriter   // writer emits the rendered Markdown output.
+	source              []byte            // source contains the original document bytes.
+	lists               []listContext     // lists tracks nested list rendering state.
+	embeddedImages      map[string]string // embeddedImages maps data URIs to reference labels.
+	embeddedDefinitions []string          // embeddedDefinitions stores generated reference definitions.
+	codeSpan            codeSpanContext   // codeSpan stores temporary inline code rendering state.
 }
 
 // listContext stores numbering and marker state for a list level.
@@ -57,7 +60,7 @@ type nodeRenderer func(*renderContext, ast.Node, bool) ast.WalkStatus
 func NewRenderer() *Renderer {
 	r := &Renderer{}
 	r.nodeRenderers = map[ast.NodeKind]nodeRenderer{
-		ast.KindDocument:        r.renderBlockSeparator,
+		ast.KindDocument:        chainRenderers(r.renderDocument, r.renderBlockSeparator),
 		ast.KindHeading:         chainRenderers(r.renderBlockSeparator, r.renderHeading),
 		ast.KindBlockquote:      chainRenderers(r.renderBlockSeparator, r.renderBlockquote),
 		ast.KindCodeBlock:       chainRenderers(r.renderBlockSeparator, r.renderCodeBlock),
@@ -79,6 +82,20 @@ func NewRenderer() *Renderer {
 	}
 
 	return r
+}
+
+// renderDocument appends reference definitions for embedded images.
+func (r *Renderer) renderDocument(context *renderContext, _ ast.Node, entering bool) ast.WalkStatus {
+	if entering || len(context.embeddedDefinitions) == 0 {
+		return ast.WalkContinue
+	}
+
+	context.writer.endLine()
+	for _, definition := range context.embeddedDefinitions {
+		context.writer.writeLine([]byte(definition))
+	}
+
+	return ast.WalkContinue
 }
 
 // AddOptions implements renderer.Renderer.
@@ -181,7 +198,9 @@ func (r *Renderer) renderThematicBreak(context *renderContext, _ ast.Node, enter
 func (r *Renderer) renderCodeBlock(context *renderContext, node ast.Node, entering bool) ast.WalkStatus {
 	if entering {
 		context.writer.pushPrefix([]byte("    "))
+		context.writer.preserveTrailingWhitespace = true
 		r.renderLines(context, node)
+		context.writer.preserveTrailingWhitespace = false
 	} else {
 		context.writer.popPrefix()
 	}
@@ -192,13 +211,16 @@ func (r *Renderer) renderCodeBlock(context *renderContext, node ast.Node, enteri
 // renderFencedCodeBlock renders a fenced code block and its info string.
 func (r *Renderer) renderFencedCodeBlock(context *renderContext, node ast.Node, entering bool) ast.WalkStatus {
 	block := node.(*ast.FencedCodeBlock)
-	context.writer.writeBytes([]byte("```"))
+	fence := fencedCodeDelimiter(block, context.source)
+	context.writer.writeBytes(fence)
 	if entering {
 		if block.Info != nil {
 			context.writer.writeBytes(block.Info.Value(context.source))
 		}
 		context.writer.flushLine()
+		context.writer.preserveTrailingWhitespace = true
 		r.renderLines(context, node)
+		context.writer.preserveTrailingWhitespace = false
 	}
 
 	return ast.WalkContinue
@@ -309,11 +331,73 @@ func (r *Renderer) renderLink(context *renderContext, node ast.Node, entering bo
 // renderImage renders a Markdown image.
 func (r *Renderer) renderImage(context *renderContext, node ast.Node, entering bool) ast.WalkStatus {
 	image := node.(*ast.Image)
+	dataURI, embedded := embeddedImageDataURI(string(image.Destination))
+	if embedded {
+		imageKey := dataURI + "\x00" + string(image.Title)
+		label, ok := context.embeddedImages[imageKey]
+		if !ok {
+			label = fmt.Sprintf("regdoc-image-%d", len(context.embeddedImages)+1)
+			context.embeddedImages[imageKey] = label
+			definition := "[" + label + "]:data&colon;" + strings.TrimPrefix(dataURI, "data:")
+			if len(image.Title) > 0 {
+				definition += ` "` + string(image.Title) + `"`
+			}
+			context.embeddedDefinitions = append(context.embeddedDefinitions, definition)
+		}
+
+		if entering {
+			context.writer.writeBytes([]byte("!["))
+		} else {
+			context.writer.writeBytes([]byte("][" + label + "]"))
+		}
+
+		return ast.WalkContinue
+	}
+
 	if entering {
 		context.writer.writeBytes([]byte("!"))
 	}
 
 	return r.renderLinkCommon(context, image.Title, image.Destination, entering)
+}
+
+// fencedCodeDelimiter returns a fence that cannot close inside the block.
+func fencedCodeDelimiter(block *ast.FencedCodeBlock, source []byte) []byte {
+	marker := byte('`')
+	if block.Info != nil && bytes.ContainsRune(block.Info.Value(source), '`') {
+		marker = '~'
+	}
+
+	longestRun := 0
+	for i := range block.Lines().Len() {
+		segment := block.Lines().At(i)
+		line := segment.Value(source)
+		run := 0
+		for _, value := range line {
+			if value == marker {
+				run++
+				longestRun = max(longestRun, run)
+			} else {
+				run = 0
+			}
+		}
+	}
+
+	return bytes.Repeat([]byte{marker}, max(3, longestRun+1))
+}
+
+// embeddedImageDataURI recognizes raw and entity-escaped inline base64 images.
+func embeddedImageDataURI(destination string) (string, bool) {
+	switch {
+	case strings.HasPrefix(destination, "data:image/"):
+	case strings.HasPrefix(destination, "data&colon;image/"):
+		destination = "data:" + strings.TrimPrefix(destination, "data&colon;")
+	default:
+		return "", false
+	}
+
+	_, _, ok := strings.Cut(destination, ";base64,")
+	return destination, ok
 }
 
 // renderLinkCommon renders shared Markdown link and image syntax.
@@ -421,5 +505,9 @@ func analyzeCodeSpan(node ast.Node, source []byte) codeSpanContext {
 
 // newRenderContext builds per-render state for a renderer invocation.
 func newRenderContext(writer io.Writer, source []byte) renderContext {
-	return renderContext{writer: newMarkdownWriter(writer), source: source}
+	return renderContext{
+		writer:         newMarkdownWriter(writer),
+		source:         source,
+		embeddedImages: make(map[string]string),
+	}
 }
