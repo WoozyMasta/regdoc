@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/woozymasta/regdoc/internal/httpx"
@@ -166,6 +167,39 @@ func TestListTagsStatusError(t *testing.T) {
 	_, err := c.ListTags(context.Background(), target.Target{Repository: "user/image"})
 	if !errors.Is(err, provider.ErrNotFound) {
 		t.Fatalf("err = %v, want wrapping ErrNotFound", err)
+	}
+}
+
+func TestListTagsRejectsCrossOriginPaginationURL(t *testing.T) {
+	var externalCalled atomic.Bool
+	external := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		externalCalled.Store(true)
+	}))
+	defer external.Close()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/v2/users/login/" {
+			_, _ = w.Write([]byte(`{"token":"jwt-token"}`))
+			return
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"results": []map[string]string{{"name": "1.0.0"}},
+			"next":    external.URL + "/steal",
+		})
+	}))
+	defer srv.Close()
+
+	c := New(srv.Client(), "user", "token")
+	c.BaseURL = srv.URL
+
+	_, err := c.ListTags(context.Background(), target.Target{Repository: "user/image"})
+	if !errors.Is(err, provider.ErrInvalidResponse) {
+		t.Fatalf("err = %v, want wrapping ErrInvalidResponse", err)
+	}
+	if externalCalled.Load() {
+		t.Fatal("cross-origin pagination server received a request")
 	}
 }
 

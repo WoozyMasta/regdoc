@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning][].
 * Preserve Markdown semantics when stripping multiline HTML comments,
   rendering fenced and indented code blocks, and relocating embedded images.
 * Allow successful provider API responses larger than the error-body limit.
+* Reject cross-origin Docker Hub pagination URLs before forwarding credentials.
 
 ## [0.3.0][] - 2026-08-11
 

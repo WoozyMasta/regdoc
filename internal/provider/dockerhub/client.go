@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/woozymasta/regdoc/internal/httpx"
 	"github.com/woozymasta/regdoc/internal/provider"
@@ -83,11 +85,16 @@ func (c *Client) ListTags(ctx context.Context, tgt target.Target) ([]string, err
 		return nil, err
 	}
 
+	baseURL, err := url.Parse(c.BaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("dockerhub: parse API base URL: %w", err)
+	}
+
 	var tags []string
 
-	url := c.BaseURL + "/v2/repositories/" + tgt.Repository + "/tags/?page_size=100"
+	pageURL := c.BaseURL + "/v2/repositories/" + tgt.Repository + "/tags/?page_size=100"
 
-	for url != "" {
+	for pageURL != "" {
 		var page struct {
 			Next    string `json:"next"`
 			Results []struct {
@@ -95,7 +102,7 @@ func (c *Client) ListTags(ctx context.Context, tgt target.Target) ([]string, err
 			} `json:"results"`
 		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, pageURL, nil)
 		if err != nil {
 			return nil, fmt.Errorf("build dockerhub tags request: %w", err)
 		}
@@ -125,10 +132,55 @@ func (c *Client) ListTags(ctx context.Context, tgt target.Target) ([]string, err
 			tags = append(tags, result.Name)
 		}
 
-		url = page.Next
+		pageURL, err = resolvePaginationURL(baseURL, req.URL, page.Next)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return tags, nil
+}
+
+// resolvePaginationURL resolves next against the current page
+// and rejects destinations outside the configured Docker Hub API origin.
+func resolvePaginationURL(baseURL, currentURL *url.URL, next string) (string, error) {
+	if next == "" {
+		return "", nil
+	}
+
+	nextURL, err := url.Parse(next)
+	if err != nil {
+		return "", fmt.Errorf("dockerhub: parse pagination URL: %w", provider.ErrInvalidResponse)
+	}
+	nextURL = currentURL.ResolveReference(nextURL)
+	if !sameOrigin(baseURL, nextURL) {
+		return "", fmt.Errorf("dockerhub: cross-origin pagination URL: %w", provider.ErrInvalidResponse)
+	}
+
+	return nextURL.String(), nil
+}
+
+// sameOrigin compares URL schemes, hosts and effective ports.
+func sameOrigin(a, b *url.URL) bool {
+	return strings.EqualFold(a.Scheme, b.Scheme) &&
+		strings.EqualFold(a.Hostname(), b.Hostname()) &&
+		effectivePort(a) == effectivePort(b)
+}
+
+// effectivePort returns an explicit port or the scheme's default port.
+func effectivePort(value *url.URL) string {
+	if port := value.Port(); port != "" {
+		return port
+	}
+
+	switch strings.ToLower(value.Scheme) {
+	case "http":
+		return "80"
+	case "https":
+		return "443"
+	default:
+		return ""
+	}
 }
 
 // login uses Docker Hub's login endpoint.
