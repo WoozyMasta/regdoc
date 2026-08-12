@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
-## Unreleased
+## [0.4.0][] - 2026-08-13
 
 ### Changed
 
@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning][].
 * Move stale-tag check next to publishing without duplicating tag pagination.
 * Avoid cutting Markdown documents inside fenced code blocks.
 * Rerender HTML after document cuts to keep generated elements complete.
+
+[0.4.0]: https://github.com/WoozyMasta/regdoc/compare/v0.3.0...v0.4.0
 
 ## [0.3.0][] - 2026-08-11
 
