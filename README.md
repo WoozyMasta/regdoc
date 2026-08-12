@@ -55,8 +55,8 @@ REGDOC_USERNAME="example" REGDOC_PASSWORD="$HARBOR_PASSWORD" \
   regdoc registry.example/team/service
 ```
 
-Docker Hub and Harbor also use the Docker credential store
-and credential helpers when explicit credentials are absent.
+Docker Hub and Harbor also use Docker-compatible credentials
+when explicit credentials are absent, including repository-scoped entries.
 Select `--provider` explicitly when the registry hostname is ambiguous.
 
 Do not pass secrets as command-line arguments.
@@ -77,10 +77,10 @@ regdoc quay.io/example/service:3.1.1
 ```
 
 When `IMAGE` carries an explicit tag,
-`regdoc` lists the tags already published in the repository -
-using the same credentials already resolved for publishing,
-no extra permissions needed - finds the highest existing stable release,
-and skips publishing (a no-op, not an error) if tag being published is older.
+`regdoc` lists the tags already published in the repository
+using the available registry credentials, with no extra permissions needed.
+It finds the highest existing stable release and skips publishing
+(a no-op, not an error) if the tag being published is older.
 Equal versions still publish, so re-running the same tag's CI job is safe.
 
 A tag-order check runs immediately before publishing to minimize race window.

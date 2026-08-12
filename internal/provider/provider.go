@@ -37,8 +37,7 @@ type Publisher interface {
 }
 
 // TagLister lists tags already published in tgt's repository.
-// Publisher implementations may optionally support it;
-// callers type-assert rather than requiring it universally.
+// Callers type-assert so non-registry publishers can omit the capability.
 type TagLister interface {
 	ListTags(ctx context.Context, tgt target.Target) ([]string, error)
 }

@@ -16,13 +16,19 @@ and this project adheres to [Semantic Versioning][].
 
 ## Unreleased
 
+### Changed
+
+* Prefer the OCI Distribution API for tag listing
+  when ORAScope resolves registry credentials,
+  retaining provider metadata APIs as fallback.
+
 ### Fixed
 
 * Preserve Markdown semantics when stripping multiline HTML comments,
   rendering fenced and indented code blocks, and relocating embedded images.
-* Allow successful provider API responses larger than the error-body limit.
-* Reject cross-origin Docker Hub pagination URLs before forwarding credentials.
-* Reject cyclic Docker Hub pagination before repeating requests.
+* Allow successful registry tag responses larger than the error-body limit.
+* Reject cross-origin registry pagination before forwarding credentials.
+* Reject cyclic registry pagination before repeating requests.
 * Move stale-tag check next to publishing without duplicating tag pagination.
 * Avoid cutting Markdown documents inside fenced code blocks.
 * Rerender HTML after document cuts to keep generated elements complete.

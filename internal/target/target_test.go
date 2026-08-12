@@ -194,3 +194,22 @@ func TestHostname(t *testing.T) {
 		}
 	}
 }
+
+func TestDistributionRegistry(t *testing.T) {
+	cases := []struct {
+		registry string
+		want     string
+	}{
+		{"docker.io", "registry-1.docker.io"},
+		{"index.docker.io", "registry-1.docker.io"},
+		{"quay.io", "quay.io"},
+		{"registry.example.com:5000", "registry.example.com:5000"},
+	}
+
+	for _, tc := range cases {
+		got := Target{Registry: tc.registry}.DistributionRegistry()
+		if got != tc.want {
+			t.Errorf("DistributionRegistry(%q) = %q, want %q", tc.registry, got, tc.want)
+		}
+	}
+}

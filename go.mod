@@ -5,6 +5,7 @@ go 1.26
 require (
 	github.com/google/licensecheck v0.3.1
 	github.com/woozymasta/flags v0.12.1
+	github.com/woozymasta/orascope v0.1.0
 	github.com/woozymasta/rats v0.4.0
 	github.com/woozymasta/semver v0.3.0 // indirect
 	github.com/yuin/goldmark v1.8.5

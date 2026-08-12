@@ -8,29 +8,30 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/woozymasta/orascope"
+	"oras.land/oras-go/v2/registry"
 	"oras.land/oras-go/v2/registry/remote/auth"
-	"oras.land/oras-go/v2/registry/remote/credentials"
 
 	"github.com/woozymasta/regdoc/internal/target"
 )
 
-// keychainCredentials delegates Docker config
-// and credential-helper handling to the ORAS credential store.
-// Do not parse Docker config or invoke helpers directly here.
+// keychainCredentials resolves Docker-compatible credentials for the exact repository.
 func keychainCredentials(tgt target.Target) (username, password string, ok bool, err error) {
-	store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{})
+	adapter, err := orascope.NewDefault()
 	if err != nil {
-		return "", "", false, fmt.Errorf("open docker credential store: %w", err)
+		return "", "", false, fmt.Errorf("open repository-scoped credential adapter: %w", err)
 	}
 
-	serverAddress := credentials.ServerAddressFromRegistry(tgt.Registry)
-	if tgt.Registry == "index.docker.io" {
-		serverAddress = credentials.ServerAddressFromRegistry("docker.io")
+	ref := registry.Reference{
+		Registry:   tgt.DistributionRegistry(),
+		Repository: tgt.Repository,
 	}
-
-	credential, err := store.Get(context.Background(), serverAddress)
+	ctx := auth.AppendRepositoryScope(context.Background(), ref, auth.ActionPull)
+	credential, err := adapter.CredentialFunc(nil)(ctx, ref.Registry)
 	if err != nil {
-		return "", "", false, fmt.Errorf("resolve docker keychain for %q: %w", tgt.Registry, err)
+		return "", "", false, fmt.Errorf(
+			"resolve docker keychain for %q: %w", tgt.Registry+"/"+tgt.Repository, err,
+		)
 	}
 
 	if credential == auth.EmptyCredential {

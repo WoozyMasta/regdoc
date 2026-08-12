@@ -8,6 +8,8 @@ github.com/woozymasta/calver v0.1.0 h1:u5urHLK2w9WBUN73L7wS4obkkTzxbVnn9OvphTl9i
 github.com/woozymasta/calver v0.1.0/go.mod h1:pqQb5s69AQTWbXqsh/dQEMyl+T1PcGtElnObK+84K9w=
 github.com/woozymasta/flags v0.12.1 h1:wr7XtJGE0NJC7zdXDVV54LFub/V3jMRTceUp7VMncuc=
 github.com/woozymasta/flags v0.12.1/go.mod h1:3UA+ELeAv3k/GJ0gG6aB+iKMmZutMLSpRmSSb2xftbk=
+github.com/woozymasta/orascope v0.1.0 h1:tPQM5SrNBp/UUwwyxGBxJe1Plg7jpSIOnTLsayI+1Ms=
+github.com/woozymasta/orascope v0.1.0/go.mod h1:kgXMfH43koKAk23aLmSojrRwdLSy1M7hRCyTVXILJRA=
 github.com/woozymasta/rats v0.4.0 h1:2hfj2QcRoI7VyrGNkjD+b8wSgex/Q0t/EnkrbGlsstw=
 github.com/woozymasta/rats v0.4.0/go.mod h1:5csWbOSg8bJDRIONrHsuWHkvQEVxNhNRDm6A1ZLfuuo=
 github.com/woozymasta/semver v0.3.0 h1:sE0cBmW5qF6fQwcgCT2geVzJxLd+YlcrvdyGt3h4GnA=

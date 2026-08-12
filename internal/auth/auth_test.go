@@ -55,6 +55,12 @@ func clearAuthEnv(t *testing.T) {
 	} {
 		t.Setenv(k, "")
 	}
+
+	emptyConfig := `{"auths":{}}`
+	encodedConfig := base64.StdEncoding.EncodeToString([]byte(emptyConfig))
+	t.Setenv("DOCKER_AUTH_CONFIG", emptyConfig)
+	t.Setenv("DOCKER_AUTH_CONFIG_BASE64", encodedConfig)
+	t.Setenv("DOCKER_AUTH_CONFIG_ENCODED", encodedConfig)
 }
 
 func TestResolveDockerHubExplicitCLI(t *testing.T) {
@@ -103,6 +109,25 @@ func TestResolveDockerHubKeychainDockerIOAlias(t *testing.T) {
 
 	if got.Username != "alias-user" || got.Token != "alias-pass" {
 		t.Fatalf("expected docker.io alias credentials, got %+v", got)
+	}
+}
+
+func TestResolveDockerHubRepositoryScopedCredential(t *testing.T) {
+	clearAuthEnv(t)
+	withDockerConfig(t, map[string]string{
+		"registry-1.docker.io/team/image": "scoped-user:scoped-pass",
+		"https://index.docker.io/v1/":     "host-user:host-pass",
+	})
+
+	got, err := ResolveDockerHub(
+		Explicit{},
+		target.Target{Registry: "index.docker.io", Repository: "team/image"},
+	)
+	if err != nil {
+		t.Fatalf("ResolveDockerHub: %v", err)
+	}
+	if got.Username != "scoped-user" || got.Token != "scoped-pass" {
+		t.Fatalf("expected repository-scoped credentials, got %+v", got)
 	}
 }
 

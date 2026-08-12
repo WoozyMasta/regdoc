@@ -113,3 +113,12 @@ func (t Target) Hostname() string {
 
 	return host
 }
+
+// DistributionRegistry returns the host used by the OCI Distribution API.
+func (t Target) DistributionRegistry() string {
+	if isDockerHubRegistry(t.Registry) {
+		return "registry-1.docker.io"
+	}
+
+	return t.Registry
+}
