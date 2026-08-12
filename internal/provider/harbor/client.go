@@ -119,7 +119,7 @@ func (c *Client) ListTags(ctx context.Context, tgt target.Target) ([]string, err
 			} `json:"tags"`
 		}
 
-		decodeErr := json.NewDecoder(io.LimitReader(resp.Body, httpx.ErrorBodyLimit)).Decode(&artifacts)
+		decodeErr := json.NewDecoder(io.LimitReader(resp.Body, httpx.APIResponseBodyLimit)).Decode(&artifacts)
 		_ = resp.Body.Close()
 
 		if decodeErr != nil {

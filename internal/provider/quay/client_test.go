@@ -12,8 +12,10 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/woozymasta/regdoc/internal/httpx"
 	"github.com/woozymasta/regdoc/internal/provider"
 	"github.com/woozymasta/regdoc/internal/target"
 )
@@ -101,6 +103,30 @@ func TestListTagsStatusError(t *testing.T) {
 	_, err := c.ListTags(context.Background(), target.Target{Registry: u.Host, Repository: "group/image"})
 	if !errors.Is(err, provider.ErrNotFound) {
 		t.Fatalf("err = %v, want wrapping ErrNotFound", err)
+	}
+}
+
+func TestListTagsResponseLargerThanErrorBodyLimit(t *testing.T) {
+	padding := strings.Repeat("x", httpx.ErrorBodyLimit+1)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"tags":           []map[string]string{{"name": "1.0.0", "padding": padding}},
+			"has_additional": false,
+		})
+	}))
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+	c := New(srv.Client(), "http", "quay-token")
+
+	tags, err := c.ListTags(context.Background(), target.Target{Registry: u.Host, Repository: "group/image"})
+	if err != nil {
+		t.Fatalf("ListTags: %v", err)
+	}
+	if want := []string{"1.0.0"}; !slices.Equal(tags, want) {
+		t.Fatalf("ListTags = %v, want %v", tags, want)
 	}
 }
 

@@ -114,7 +114,7 @@ func (c *Client) ListTags(ctx context.Context, tgt target.Target) ([]string, err
 			return nil, httpErr
 		}
 
-		decodeErr := json.NewDecoder(io.LimitReader(resp.Body, httpx.ErrorBodyLimit)).Decode(&page)
+		decodeErr := json.NewDecoder(io.LimitReader(resp.Body, httpx.APIResponseBodyLimit)).Decode(&page)
 		_ = resp.Body.Close()
 
 		if decodeErr != nil {
@@ -162,7 +162,7 @@ func (c *Client) login(ctx context.Context) (string, error) {
 		Token string `json:"token"`
 	}
 
-	if err := json.NewDecoder(io.LimitReader(resp.Body, httpx.ErrorBodyLimit)).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, httpx.APIResponseBodyLimit)).Decode(&result); err != nil {
 		return "", fmt.Errorf("dockerhub: decode login response: %w", err)
 	}
 

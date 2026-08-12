@@ -11,8 +11,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/woozymasta/regdoc/internal/httpx"
 	"github.com/woozymasta/regdoc/internal/provider"
 	"github.com/woozymasta/regdoc/internal/target"
 )
@@ -164,6 +166,35 @@ func TestListTagsStatusError(t *testing.T) {
 	_, err := c.ListTags(context.Background(), target.Target{Repository: "user/image"})
 	if !errors.Is(err, provider.ErrNotFound) {
 		t.Fatalf("err = %v, want wrapping ErrNotFound", err)
+	}
+}
+
+func TestListTagsResponseLargerThanErrorBodyLimit(t *testing.T) {
+	padding := strings.Repeat("x", httpx.ErrorBodyLimit+1)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/v2/users/login/" {
+			_, _ = w.Write([]byte(`{"token":"jwt-token"}`))
+			return
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"results": []map[string]string{{"name": "1.0.0", "padding": padding}},
+			"next":    nil,
+		})
+	}))
+	defer srv.Close()
+
+	c := New(srv.Client(), "user", "token")
+	c.BaseURL = srv.URL
+
+	tags, err := c.ListTags(context.Background(), target.Target{Repository: "user/image"})
+	if err != nil {
+		t.Fatalf("ListTags: %v", err)
+	}
+	if want := []string{"1.0.0"}; !slices.Equal(tags, want) {
+		t.Fatalf("ListTags = %v, want %v", tags, want)
 	}
 }
 

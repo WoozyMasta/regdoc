@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning][].
 
 * Preserve Markdown semantics when stripping multiline HTML comments,
   rendering fenced and indented code blocks, and relocating embedded images.
+* Allow successful provider API responses larger than the error-body limit.
 
 ## [0.3.0][] - 2026-08-11
 

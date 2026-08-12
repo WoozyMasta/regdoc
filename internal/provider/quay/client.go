@@ -106,7 +106,7 @@ func (c *Client) ListTags(ctx context.Context, tgt target.Target) ([]string, err
 			HasAdditional bool `json:"has_additional"`
 		}
 
-		decodeErr := json.NewDecoder(io.LimitReader(resp.Body, httpx.ErrorBodyLimit)).Decode(&result)
+		decodeErr := json.NewDecoder(io.LimitReader(resp.Body, httpx.APIResponseBodyLimit)).Decode(&result)
 		_ = resp.Body.Close()
 
 		if decodeErr != nil {

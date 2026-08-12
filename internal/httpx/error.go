@@ -12,9 +12,12 @@ import (
 	"github.com/woozymasta/regdoc/internal/provider"
 )
 
-// ErrorBodyLimit caps how much of an error response body is read and embedded in the resulting error.
-// ErrorBodyLimit bounds response text retained in an error.
-const ErrorBodyLimit = 4 * 1024
+const (
+	// APIResponseBodyLimit bounds successful JSON responses from provider APIs.
+	APIResponseBodyLimit = 8 * 1024 * 1024
+	// ErrorBodyLimit bounds response text retained in an error.
+	ErrorBodyLimit = 4 * 1024
+)
 
 // NewHTTPError builds a provider.HTTPError from a non-2xx response,
 // reading and closing its body (bounded by ErrorBodyLimit)
