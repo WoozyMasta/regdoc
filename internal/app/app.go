@@ -62,9 +62,7 @@ func Run(ctx context.Context, cfg Config, stdout, stderr io.Writer) error {
 	}
 
 	// A local destination never resolves credentials or publishes;
-	// only the publish path needs a Publisher, so credentials
-	// and the tag-order gate are resolved here, before any markdown rendering,
-	// so a stale tag never pays for work whose result would be discarded.
+	// only the publish path needs a Publisher, so credentials are resolved here.
 	var pub provider.Publisher
 
 	if cfg.Output == "" {
@@ -78,19 +76,6 @@ func Run(ctx context.Context, cfg Config, stdout, stderr io.Writer) error {
 			}
 
 			return err
-		}
-
-		if !cfg.SkipTagCheck {
-			if lister, ok := pub.(provider.TagLister); ok {
-				skip, gerr := tagOrderGate(ctx, cfg, lister, tgt, reporter)
-				if gerr != nil {
-					return gerr
-				}
-
-				if skip {
-					return nil
-				}
-			}
 		}
 	}
 
@@ -165,6 +150,21 @@ func Run(ctx context.Context, cfg Config, stdout, stderr io.Writer) error {
 		}
 
 		return writeResult(cfg, stdout, doc.Content, sourcePaths(sources))
+	}
+
+	// Check tag order immediately before publishing to minimize the race window.
+	// A single late check avoids doubling pagination cost for large repositories.
+	if !cfg.SkipTagCheck {
+		if lister, ok := pub.(provider.TagLister); ok {
+			skip, gerr := tagOrderGate(ctx, cfg, lister, tgt, reporter)
+			if gerr != nil {
+				return gerr
+			}
+
+			if skip {
+				return nil
+			}
+		}
 	}
 
 	// Payload cutting is enforced only for size failures from the provider.

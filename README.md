@@ -82,6 +82,11 @@ using the same credentials already resolved for publishing,
 no extra permissions needed - finds the highest existing stable release,
 and skips publishing (a no-op, not an error) if tag being published is older.
 Equal versions still publish, so re-running the same tag's CI job is safe.
+
+A tag-order check runs immediately before publishing to minimize race window.
+It is a best-effort guard, not an atomic guarantee;
+serialize publishing jobs per repository in CI when strict ordering is required.
+
 A tag that isn't a valid stable SemVer release
 (`:latest`, `:nightly`, `:sha-abcdef`, prereleases)
 is treated the same as no tag at all: publish unconditionally.

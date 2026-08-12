@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning][].
 * Allow successful provider API responses larger than the error-body limit.
 * Reject cross-origin Docker Hub pagination URLs before forwarding credentials.
 * Reject cyclic Docker Hub pagination before repeating requests.
+* Move stale-tag check next to publishing without duplicating tag pagination.
 
 ## [0.3.0][] - 2026-08-11
 

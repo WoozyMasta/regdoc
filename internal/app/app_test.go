@@ -9,11 +9,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -160,6 +162,46 @@ func TestRunPublishesForNewerExplicitTag(t *testing.T) {
 	}
 }
 
+func TestRunChecksTagsOnceBeforePublish(t *testing.T) {
+	var tagRequests int
+	var events []string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/tag/") {
+			tagRequests++
+			events = append(events, "list-tags")
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"tags":[{"name":"1.0.0"}],"has_additional":false}`))
+			return
+		}
+
+		events = append(events, "publish")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	u, _ := url.Parse(srv.URL)
+	dir := t.TempDir()
+	writeFile(t, dir, "README.md", "# Hello\n")
+
+	cfg := testConfig(dir)
+	cfg.Provider = "quay"
+	cfg.PlainHTTP = true
+	cfg.Token = "quay-token"
+	cfg.Positional.Image = u.Host + "/group/image:2.0.0"
+
+	if err := Run(context.Background(), cfg, io.Discard, io.Discard); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	if tagRequests != 1 {
+		t.Fatalf("tag-list requests = %d, want 1", tagRequests)
+	}
+	if want := []string{"list-tags", "publish"}; !slices.Equal(events, want) {
+		t.Fatalf("events = %v, want %v", events, want)
+	}
+}
+
 func TestRunNoExplicitTagAlwaysPublishes(t *testing.T) {
 	srv, published := tagGateServer(t, []string{"99.0.0"})
 	defer srv.Close()
@@ -241,7 +283,7 @@ func TestRunVersionFormatCalVerSkipsOlderTag(t *testing.T) {
 	}
 }
 
-func TestRunSkipsMarkdownProcessingForOlderExplicitTag(t *testing.T) {
+func TestRunChecksTagOrderAfterMarkdownProcessing(t *testing.T) {
 	srv, published := tagGateServer(t, []string{"1.0.0", "2.0.0"})
 	defer srv.Close()
 
@@ -254,20 +296,18 @@ func TestRunSkipsMarkdownProcessingForOlderExplicitTag(t *testing.T) {
 	cfg.Provider = "quay"
 	cfg.PlainHTTP = true
 	cfg.Token = "quay-token"
-	// An explicit license path that does not exist makes document.BuildHeader fail;
-	// if the tag-order gate runs before document processing (as it must),
-	// Run never reaches BuildHeader and this never surfaces.
+	// An invalid explicit license proves document processing happens before the gate.
 	cfg.License = "does-not-exist.txt"
 	cfg.Positional.Image = u.Host + "/group/image:1.5.0"
 
 	var stdout, stderr bytes.Buffer
 
-	if err := Run(context.Background(), cfg, &stdout, &stderr); err != nil {
-		t.Fatalf("Run: %v (markdown/header processing must be skipped before it can fail)", err)
+	if err := Run(context.Background(), cfg, &stdout, &stderr); err == nil {
+		t.Fatal("expected document processing error before tag-order check")
 	}
 
 	if *published {
-		t.Fatal("expected publish to be skipped for a tag older than the existing latest")
+		t.Fatal("expected no publish after document processing error")
 	}
 }
 
