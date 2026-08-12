@@ -112,6 +112,39 @@ func TestPublishDoesNotCutInsideFencedCode(t *testing.T) {
 	}
 }
 
+func TestPublishRendersHTMLAgainAfterPayloadTooLarge(t *testing.T) {
+	pub := &fakePublisher{results: []error{provider.ErrPayloadTooLarge, nil}}
+	parts := []document.ProcessedPart{{
+		Path: "README.md",
+		Content: "# Kept\n\n- one\n- two\n\n" +
+			"| A | B |\n| - | - |\n| 1 | 2 |\n\n" +
+			"```go\nfmt.Println(\"ok\")\n```\n\n" +
+			"## Drop\n\n" + strings.Repeat("tail ", 2000),
+	}}
+
+	err := publish(
+		context.Background(), pub, target.Target{}, nil, parts, "", FallbackCut,
+		0, 2, 5, provider.Quay, document.FormatHTML, silentReporter(),
+	)
+	if err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+
+	if len(pub.calls) != 2 {
+		t.Fatalf("expected 2 attempts, got %d", len(pub.calls))
+	}
+
+	got := string(pub.calls[1].Content)
+	if strings.Contains(got, "Drop") {
+		t.Fatalf("second attempt retained trailing section: %q", got)
+	}
+	for _, tag := range []string{"ul", "table", "pre", "code"} {
+		if strings.Count(got, "<"+tag) != 1 || strings.Count(got, "</"+tag+">") != 1 {
+			t.Fatalf("second attempt contains unbalanced <%s> tags: %q", tag, got)
+		}
+	}
+}
+
 func TestPublishStopsAfterConfiguredCutRetries(t *testing.T) {
 	pub := &fakePublisher{results: []error{provider.ErrPayloadTooLarge}}
 	parts := []document.ProcessedPart{{Path: "README.md", Content: strings.Repeat("content ", 100)}}
@@ -162,6 +195,26 @@ func TestPublishAppliesConfiguredBodyLimitBeforePublishing(t *testing.T) {
 	}
 }
 
+func TestPublishAppliesConfiguredBodyLimitBeforeRenderingHTML(t *testing.T) {
+	pub := &fakePublisher{}
+	parts := []document.ProcessedPart{{Path: "README.md", Content: strings.Repeat("content ", 100)}}
+
+	if err := publish(
+		context.Background(), pub, target.Target{}, nil, parts, "", FallbackCut,
+		200, 2, 5, provider.Quay, document.FormatHTML, silentReporter(),
+	); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+
+	got := pub.calls[0].Content
+	if len(got) > 200 {
+		t.Fatalf("content size = %d, want at most 200", len(got))
+	}
+	if !strings.HasPrefix(string(got), "<p>") || !strings.HasSuffix(string(got), "</p>\n") {
+		t.Fatalf("content is not a complete rendered paragraph: %q", got)
+	}
+}
+
 func TestPublishAppliesDockerHubCharacterLimit(t *testing.T) {
 	pub := &fakePublisher{}
 	parts := []document.ProcessedPart{{Path: "README.md", Content: strings.Repeat("ё", dockerHubBodyLimit+1)}}
@@ -175,6 +228,26 @@ func TestPublishAppliesDockerHubCharacterLimit(t *testing.T) {
 
 	if got := utf8.RuneCount(pub.calls[0].Content); got != dockerHubBodyLimit {
 		t.Fatalf("rune count = %d, want %d", got, dockerHubBodyLimit)
+	}
+}
+
+func TestPublishAppliesDockerHubCharacterLimitBeforeRenderingHTML(t *testing.T) {
+	pub := &fakePublisher{}
+	parts := []document.ProcessedPart{{Path: "README.md", Content: strings.Repeat("ё", dockerHubBodyLimit+1)}}
+
+	if err := publish(
+		context.Background(), pub, target.Target{}, nil, parts, "", FallbackCut,
+		0, 2, 5, provider.DockerHub, document.FormatHTML, silentReporter(),
+	); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+
+	got := pub.calls[0].Content
+	if size := utf8.RuneCount(got); size > dockerHubBodyLimit {
+		t.Fatalf("rune count = %d, want at most %d", size, dockerHubBodyLimit)
+	}
+	if !strings.HasPrefix(string(got), "<p>") || !strings.HasSuffix(string(got), "</p>\n") {
+		t.Fatalf("content is not a complete rendered paragraph: %q", got)
 	}
 }
 

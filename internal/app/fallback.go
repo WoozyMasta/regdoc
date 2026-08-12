@@ -7,6 +7,7 @@ package app
 import (
 	"context"
 	"errors"
+	"unicode/utf8"
 
 	"github.com/woozymasta/regdoc/internal/document"
 	"github.com/woozymasta/regdoc/internal/provider"
@@ -43,16 +44,51 @@ func publish(
 ) error {
 	doc := document.Merge(header, parts)
 	doc.ShortDescription = shortDescription
+	source := doc.Content
 	if err := renderDocument(&doc, format); err != nil {
 		return err
 	}
 
 	if providerType == provider.DockerHub {
-		limitDocumentRunes(&doc, dockerHubBodyLimit, reporter)
+		if format == document.FormatHTML {
+			original := len(doc.Content)
+			var err error
+			source, err = limitRenderedDocument(
+				source, &doc, dockerHubBodyLimit, headingLevel, format, countRunes,
+			)
+			if err != nil {
+				return err
+			}
+			if len(doc.Content) < original {
+				reporter.Warnf(
+					"document body exceeds the provider limit, cutting from %d to %d bytes",
+					original, len(doc.Content),
+				)
+			}
+		} else {
+			limitDocumentRunes(&doc, dockerHubBodyLimit, reporter)
+		}
 	}
 
 	if bodyLimit > 0 {
-		cutDocument(&doc, bodyLimit, headingLevel, reporter)
+		if format == document.FormatHTML {
+			original := len(doc.Content)
+			var err error
+			source, err = limitRenderedDocument(
+				source, &doc, bodyLimit, headingLevel, format, countBytes,
+			)
+			if err != nil {
+				return err
+			}
+			if len(doc.Content) < original {
+				reporter.Warnf(
+					"document body exceeds --doc-body-limit, cutting from %d to %d bytes",
+					original, len(doc.Content),
+				)
+			}
+		} else {
+			cutDocument(&doc, bodyLimit, headingLevel, reporter)
+		}
 	}
 
 	for attempt := 0; ; attempt++ {
@@ -79,7 +115,18 @@ func publish(
 			return err
 		}
 
-		nextContent := document.Cut(doc.Content, nextLimit, headingLevel)
+		var nextSource, nextContent []byte
+		if format == document.FormatHTML {
+			var renderErr error
+			nextSource, nextContent, renderErr = cutAndRender(
+				source, doc.Content, nextLimit, headingLevel, format, countBytes,
+			)
+			if renderErr != nil {
+				return renderErr
+			}
+		} else {
+			nextContent = document.Cut(doc.Content, nextLimit, headingLevel)
+		}
 		if len(nextContent) >= len(doc.Content) {
 			return err
 		}
@@ -89,7 +136,72 @@ func publish(
 			len(doc.Content), len(nextContent),
 		)
 		doc.Content = nextContent
+		if format == document.FormatHTML {
+			source = nextSource
+		}
 	}
+}
+
+// limitRenderedDocument cuts the Markdown source
+// and renders it again until the rendered result fits the requested limit.
+func limitRenderedDocument(
+	source []byte,
+	doc *provider.Document,
+	limit int,
+	headingLevel int,
+	format document.Format,
+	measure func([]byte) int,
+) ([]byte, error) {
+	nextSource, nextContent, err := cutAndRender(
+		source, doc.Content, limit, headingLevel, format, measure,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	doc.Content = nextContent
+
+	return nextSource, nil
+}
+
+// cutAndRender reduces source until its freshly rendered output fits limit.
+func cutAndRender(
+	source []byte,
+	rendered []byte,
+	limit int,
+	headingLevel int,
+	format document.Format,
+	measure func([]byte) int,
+) ([]byte, []byte, error) {
+	for measure(rendered) > limit {
+		nextLimit := len(source) * limit / measure(rendered)
+		if nextLimit >= len(source) {
+			nextLimit = len(source) - 1
+		}
+		if nextLimit <= 0 {
+			source = nil
+		} else {
+			source = document.Cut(source, nextLimit, headingLevel)
+		}
+
+		candidate := provider.Document{Content: source}
+		if err := renderDocument(&candidate, format); err != nil {
+			return nil, nil, err
+		}
+		rendered = candidate.Content
+	}
+
+	return source, rendered, nil
+}
+
+// countBytes returns the encoded payload size.
+func countBytes(content []byte) int {
+	return len(content)
+}
+
+// countRunes returns the provider-visible character count.
+func countRunes(content []byte) int {
+	return utf8.RuneCount(content)
 }
 
 // limitDocumentRunes applies a provider field-length limit before publishing.

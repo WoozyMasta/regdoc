@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog][],
 and this project adheres to [Semantic Versioning][].
 
+<!--
+## Unreleased
+
+### Added
+### Changed
+### Removed
+-->
+
 ## Unreleased
 
 ### Fixed
@@ -17,6 +25,7 @@ and this project adheres to [Semantic Versioning][].
 * Reject cyclic Docker Hub pagination before repeating requests.
 * Move stale-tag check next to publishing without duplicating tag pagination.
 * Avoid cutting Markdown documents inside fenced code blocks.
+* Rerender HTML after document cuts to keep generated elements complete.
 
 ## [0.3.0][] - 2026-08-11
 
