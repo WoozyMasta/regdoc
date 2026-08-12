@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning][].
 * Reject cross-origin Docker Hub pagination URLs before forwarding credentials.
 * Reject cyclic Docker Hub pagination before repeating requests.
 * Move stale-tag check next to publishing without duplicating tag pagination.
+* Avoid cutting Markdown documents inside fenced code blocks.
 
 ## [0.3.0][] - 2026-08-11
 

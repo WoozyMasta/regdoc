@@ -9,9 +9,15 @@ import (
 	"unicode/utf8"
 )
 
+type codeFence struct {
+	marker byte
+	length int
+}
+
 // Cut limits content to limit bytes.
 // It prefers a Markdown or HTML heading no deeper than headingLevel,
-// then a blank line, before making a UTF-8-safe cut.
+// then a blank line or complete line outside fenced code,
+// before making a UTF-8-safe cut when no line boundary exists.
 func Cut(content []byte, limit, headingLevel int) []byte {
 	if limit <= 0 {
 		return nil
@@ -22,15 +28,89 @@ func Cut(content []byte, limit, headingLevel int) []byte {
 	}
 
 	limit = utf8Boundary(content, limit)
-	if boundary := headingBoundary(content, limit, headingLevel); boundary > 0 {
-		return content[:boundary]
-	}
-
-	if boundary := bytes.LastIndex(content[:limit], []byte("\n\n")); boundary > 0 {
+	if boundary := markdownCutBoundary(content, limit, headingLevel); boundary >= 0 {
 		return content[:boundary]
 	}
 
 	return content[:limit]
+}
+
+// markdownCutBoundary returns the preferred safe boundary outside fenced code.
+func markdownCutBoundary(content []byte, limit, headingLevel int) int {
+	heading, blank := -1, -1
+	fenceStart := -1
+	var open codeFence
+
+	lineStart := 0
+	for line := range bytes.SplitSeq(content, []byte{'\n'}) {
+		lineEnd := lineStart + len(line)
+		lineComplete := lineEnd <= limit
+		candidate, rest, isFence := parseFence(line)
+		switch {
+		case open.length > 0:
+			if lineComplete && isFence && candidate.marker == open.marker &&
+				candidate.length >= open.length && len(bytes.Trim(rest, " \t\r")) == 0 {
+				open = codeFence{}
+			}
+		case isFence && (candidate.marker != '`' || !bytes.ContainsRune(rest, '`')):
+			open = candidate
+			fenceStart = lineStart
+		case lineComplete:
+			markdownLevel := markdownHeadingLevel(line)
+			htmlLevel := htmlHeadingLevel(line)
+			if markdownLevel > 0 && markdownLevel <= headingLevel ||
+				htmlLevel > 0 && htmlLevel <= headingLevel {
+				heading = lineStart
+			}
+			if len(bytes.TrimSpace(line)) == 0 && lineStart > 0 {
+				blank = lineStart - 1
+			}
+		}
+		if lineEnd >= limit || lineEnd == len(content) {
+			break
+		}
+		lineStart = lineEnd + 1
+	}
+
+	if open.length > 0 {
+		return len(bytes.TrimRight(content[:fenceStart], " \t\r\n"))
+	}
+	if heading > 0 {
+		return heading
+	}
+	if blank > 0 {
+		return blank
+	}
+	if lineEnd := bytes.LastIndexByte(content[:limit], '\n'); lineEnd > 0 {
+		if content[lineEnd-1] == '\r' {
+			lineEnd--
+		}
+		return lineEnd
+	}
+
+	return -1
+}
+
+// parseFence parses a fence marker after up to three leading spaces.
+func parseFence(line []byte) (codeFence, []byte, bool) {
+	indent := 0
+	for indent < 3 && indent < len(line) && line[indent] == ' ' {
+		indent++
+	}
+	if indent == len(line) || line[indent] != '`' && line[indent] != '~' {
+		return codeFence{}, nil, false
+	}
+
+	marker := line[indent]
+	length := 0
+	for indent+length < len(line) && line[indent+length] == marker {
+		length++
+	}
+	if length < 3 {
+		return codeFence{}, nil, false
+	}
+
+	return codeFence{marker: marker, length: length}, line[indent+length:], true
 }
 
 // LimitRunes limits content to limit Unicode code points without splitting a rune.
@@ -52,41 +132,6 @@ func LimitRunes(content []byte, limit int) []byte {
 	}
 
 	return content
-}
-
-// headingBoundary finds the last eligible Markdown or HTML heading before limit.
-func headingBoundary(content []byte, limit, headingLevel int) int {
-	if headingLevel < 1 {
-		return 0
-	}
-
-	if headingLevel > 6 {
-		headingLevel = 6
-	}
-
-	boundary := 0
-	for lineStart := 0; lineStart < limit; {
-		lineEnd := bytes.IndexByte(content[lineStart:limit], '\n')
-		if lineEnd < 0 {
-			lineEnd = limit
-		} else {
-			lineEnd += lineStart
-		}
-
-		markdownLevel := markdownHeadingLevel(content[lineStart:lineEnd])
-		htmlLevel := htmlHeadingLevel(content[lineStart:lineEnd])
-		if markdownLevel > 0 && markdownLevel <= headingLevel ||
-			htmlLevel > 0 && htmlLevel <= headingLevel {
-			boundary = lineStart
-		}
-
-		if lineEnd == limit {
-			break
-		}
-		lineStart = lineEnd + 1
-	}
-
-	return boundary
 }
 
 // markdownHeadingLevel returns zero for a non-heading line.

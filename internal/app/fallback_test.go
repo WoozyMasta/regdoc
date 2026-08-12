@@ -96,6 +96,22 @@ func TestPublishCutsAtHeadingAfterPayloadTooLarge(t *testing.T) {
 	}
 }
 
+func TestPublishDoesNotCutInsideFencedCode(t *testing.T) {
+	pub := &fakePublisher{}
+	parts := []document.ProcessedPart{{
+		Path:    "README.md",
+		Content: "intro\n\n```go\nfunc main() {\n\tprintln(\"value\")\n}\n```\n",
+	}}
+
+	if err := publishForTest(pub, parts, provider.ErrPayloadTooLarge, nil); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+
+	if got := string(pub.calls[1].Content); strings.Contains(got, "```go") {
+		t.Fatalf("second attempt retained a partial fenced block: %q", got)
+	}
+}
+
 func TestPublishStopsAfterConfiguredCutRetries(t *testing.T) {
 	pub := &fakePublisher{results: []error{provider.ErrPayloadTooLarge}}
 	parts := []document.ProcessedPart{{Path: "README.md", Content: strings.Repeat("content ", 100)}}
