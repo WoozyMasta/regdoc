@@ -156,10 +156,11 @@ jobs:
       - name: Publish Docker Hub description
         run: |
           chmod +x build/regdoc-linux-amd64
-          ./build/regdoc-linux-amd64 docker.io/woozymasta/regdoc README.md CLI.md CHANGELOG.md
+          ./build/regdoc-linux-amd64 "docker.io/woozymasta/regdoc:${VERSION#v}" README.md CLI.md CHANGELOG.md
         env:
           REGDOC_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGDOC_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
 
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
