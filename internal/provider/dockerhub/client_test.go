@@ -203,6 +203,37 @@ func TestListTagsRejectsCrossOriginPaginationURL(t *testing.T) {
 	}
 }
 
+func TestListTagsRejectsPaginationCycle(t *testing.T) {
+	var tagsRequests atomic.Int32
+
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/v2/users/login/" {
+			_, _ = w.Write([]byte(`{"token":"jwt-token"}`))
+			return
+		}
+
+		tagsRequests.Add(1)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"results": []map[string]string{{"name": "1.0.0"}},
+			"next":    srv.URL + r.URL.RequestURI(),
+		})
+	}))
+	defer srv.Close()
+
+	c := New(srv.Client(), "user", "token")
+	c.BaseURL = srv.URL
+
+	_, err := c.ListTags(context.Background(), target.Target{Repository: "user/image"})
+	if !errors.Is(err, provider.ErrInvalidResponse) {
+		t.Fatalf("err = %v, want wrapping ErrInvalidResponse", err)
+	}
+	if got := tagsRequests.Load(); got != 1 {
+		t.Fatalf("tags requests = %d, want 1", got)
+	}
+}
+
 func TestListTagsResponseLargerThanErrorBodyLimit(t *testing.T) {
 	padding := strings.Repeat("x", httpx.ErrorBodyLimit+1)
 

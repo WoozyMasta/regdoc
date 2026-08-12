@@ -91,6 +91,7 @@ func (c *Client) ListTags(ctx context.Context, tgt target.Target) ([]string, err
 	}
 
 	var tags []string
+	visitedPages := make(map[string]struct{})
 
 	pageURL := c.BaseURL + "/v2/repositories/" + tgt.Repository + "/tags/?page_size=100"
 
@@ -106,6 +107,12 @@ func (c *Client) ListTags(ctx context.Context, tgt target.Target) ([]string, err
 		if err != nil {
 			return nil, fmt.Errorf("build dockerhub tags request: %w", err)
 		}
+		pageKey := req.URL.String()
+		if _, visited := visitedPages[pageKey]; visited {
+			return nil, fmt.Errorf("dockerhub: pagination cycle at %s: %w",
+				httpx.SanitizeURL(req.URL), provider.ErrInvalidResponse)
+		}
+		visitedPages[pageKey] = struct{}{}
 
 		req.Header.Set("Authorization", "JWT "+jwt)
 
