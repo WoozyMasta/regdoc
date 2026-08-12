@@ -54,7 +54,7 @@ func releaseBaseURL(kind forgeKind, projectURL string) string {
 	}
 
 	switch kind {
-	case forgeGitHub:
+	case forgeGitHub: // GitHub serves tag details here even when the tag has no Release object
 		return projectURL + "/releases/tag/"
 
 	case forgeGitLab:
